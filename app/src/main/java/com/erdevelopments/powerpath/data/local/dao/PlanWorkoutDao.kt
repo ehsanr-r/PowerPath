@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
 import com.erdevelopments.powerpath.data.local.PlanWorkoutEntity
 import com.erdevelopments.powerpath.data.local.model.PlanWorkoutItem
 import kotlinx.coroutines.flow.Flow
