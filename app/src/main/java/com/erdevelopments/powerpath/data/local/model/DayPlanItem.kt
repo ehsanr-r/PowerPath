@@ -5,7 +5,5 @@ data class DayPlanItem(
     val dayId: Long,
     val planId: Long,
     val planName: String,
-    val orderIndex: Int,
-    val totalWorkouts: Int,
-    val doneWorkouts: Int
+    val orderIndex: Int
 )

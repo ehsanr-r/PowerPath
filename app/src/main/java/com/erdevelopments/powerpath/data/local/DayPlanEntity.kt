@@ -23,8 +23,7 @@ import androidx.room.PrimaryKey
     ],
     indices = [
         Index(value = ["dayId"]),
-        Index(value = ["planId"]),
-        Index(value = ["dayId", "planId"], unique = true) // prevent duplicates per day
+        Index(value = ["planId"])
     ]
 )
 data class DayPlanEntity(

@@ -10,6 +10,7 @@ import com.erdevelopments.powerpath.data.local.dao.DayPlanDao
 import com.erdevelopments.powerpath.data.local.dao.DayPlanWorkoutDao
 import com.erdevelopments.powerpath.data.local.dao.PlanDao
 import com.erdevelopments.powerpath.data.local.model.DayPlanItem
+import com.erdevelopments.powerpath.data.local.model.DayPlanProgress
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutItem
 import com.erdevelopments.powerpath.data.prefs.PrefsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,22 +30,43 @@ class DayDetailViewModel @Inject constructor(
     val selectedUserId: StateFlow<Long?> =
         prefs.selectedUserId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    fun observeDayName(dayId: Long): StateFlow<String> =
-        flow { emit(dayDao.getById(dayId)?.name ?: "Day") }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Day")
+    private val dayNameFlows = mutableMapOf<Long, StateFlow<String>>()
+    private val assignedPlanFlows = mutableMapOf<Long, StateFlow<List<DayPlanItem>>>()
+    private val progressFlows = mutableMapOf<Long, StateFlow<DayPlanProgress?>>()
+    private val workoutFlows = mutableMapOf<Long, StateFlow<List<DayPlanWorkoutItem>>>()
 
-    fun observeAssignedPlans(dayId: Long): StateFlow<List<DayPlanItem>> =
-        dayPlanDao.observeDayPlans(dayId)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun observeDayName(dayId: Long): StateFlow<String> {
+        return dayNameFlows.getOrPut(dayId) {
+            flow { emit(dayDao.getById(dayId)?.name ?: "Day") }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Day")
+        }
+    }
 
-    fun observeAllPlansForUser(): StateFlow<List<PlanEntity>> =
+    fun observeAssignedPlans(dayId: Long): StateFlow<List<DayPlanItem>> {
+        return assignedPlanFlows.getOrPut(dayId) {
+            dayPlanDao.observeDayPlans(dayId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        }
+    }
+
+    val allPlansForUser: StateFlow<List<PlanEntity>> =
         selectedUserId.flatMapLatest { uid ->
             if (uid == null) flowOf(emptyList()) else planDao.observePlans(uid)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun observeWorkouts(dayPlanId: Long): StateFlow<List<DayPlanWorkoutItem>> =
-        dayPlanWorkoutDao.observeWorkouts(dayPlanId)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun observeDayPlanProgress(dayPlanId: Long): StateFlow<DayPlanProgress?> {
+        return progressFlows.getOrPut(dayPlanId) {
+            dayPlanDao.observeDayPlanProgress(dayPlanId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        }
+    }
+
+    fun observeWorkouts(dayPlanId: Long): StateFlow<List<DayPlanWorkoutItem>> {
+        return workoutFlows.getOrPut(dayPlanId) {
+            dayPlanWorkoutDao.observeWorkouts(dayPlanId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        }
+    }
 
     fun addPlanToDay(dayId: Long, planId: Long) {
         viewModelScope.launch {
@@ -54,7 +76,11 @@ class DayDetailViewModel @Inject constructor(
     }
 
     fun removePlanFromDay(dayPlanId: Long) {
-        viewModelScope.launch { dayPlanDao.deleteById(dayPlanId) }
+        viewModelScope.launch {
+            dayPlanDao.deleteById(dayPlanId)
+            progressFlows.remove(dayPlanId)
+            workoutFlows.remove(dayPlanId)
+        }
     }
 
     fun toggleDone(item: DayPlanWorkoutItem, done: Boolean) {
@@ -97,7 +123,6 @@ class DayDetailViewModel @Inject constructor(
 
     fun resetToTemplate(item: DayPlanWorkoutItem) {
         viewModelScope.launch {
-            // remove overrides row completely (falls back to template values)
             dayPlanWorkoutDao.delete(item.dayPlanId, item.workoutId)
         }
     }

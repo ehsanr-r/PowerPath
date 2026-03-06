@@ -15,7 +15,7 @@ import com.erdevelopments.powerpath.data.local.dao.*
         DayPlanEntity::class,
         DayPlanWorkoutEntity::class
     ],
-    version = 5, // bump because schema changed
+    version = 6,
     exportSchema = true
 )
 abstract class PowerPathDatabase : RoomDatabase() {
