@@ -19,9 +19,6 @@ interface PlanDao {
     @Insert
     suspend fun insert(plan: PlanEntity): Long
 
-    @Update
-    suspend fun update(plan: PlanEntity)
-
     @Query("UPDATE plans SET name = :name WHERE id = :planId")
     suspend fun updateName(planId: Long, name: String)
 

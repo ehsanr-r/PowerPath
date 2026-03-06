@@ -91,7 +91,7 @@ fun MainScaffold(navController: NavHostController) {
         ) { padding ->
             Box(Modifier.padding(padding)) {
                 when (currentTab) {
-                    "days" -> DaysScreen()
+                    "days" -> DaysScreen(onOpenDay = { dayId -> navController.navigate(Routes.dayDetail(dayId)) })
                     "plans" -> PlansScreen(onOpenPlan = { planId -> navController.navigate(Routes.planDetail(planId)) })
                     "workouts" -> WorkoutsScreen()
                     "summary" -> SummaryScreen()

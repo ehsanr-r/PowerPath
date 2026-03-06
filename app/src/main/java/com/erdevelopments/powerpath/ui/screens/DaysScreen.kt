@@ -13,13 +13,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.erdevelopments.powerpath.data.local.DayEntity
 import com.erdevelopments.powerpath.ui.components.PowerPathFab
 
 @Composable
-fun DaysScreen(vm: DaysViewModel = hiltViewModel()) {
+fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
     val userId by vm.selectedUserId.collectAsStateWithLifecycle()
     val selectedDayId by vm.selectedDayId.collectAsStateWithLifecycle()
     val days by vm.days.collectAsStateWithLifecycle()
@@ -46,10 +46,11 @@ fun DaysScreen(vm: DaysViewModel = hiltViewModel()) {
                 Text("No days yet. Tap + to add your first day.")
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(days, key = { it.id }) { day ->
+                    items(days) { day ->
                         Card(
                             modifier = Modifier.fillMaxWidth().clickable {
-                                vm.selectDay(day.id)
+                                vm.selectDay(day.id) // optional
+                                onOpenDay(day.id)
                             }
                         ) {
                             Row(

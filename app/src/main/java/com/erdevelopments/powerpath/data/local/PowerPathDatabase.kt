@@ -2,11 +2,7 @@ package com.erdevelopments.powerpath.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import com.erdevelopments.powerpath.data.local.dao.DayDao
-import com.erdevelopments.powerpath.data.local.dao.PlanDao
-import com.erdevelopments.powerpath.data.local.dao.PlanWorkoutDao
-import com.erdevelopments.powerpath.data.local.dao.UserDao
-import com.erdevelopments.powerpath.data.local.dao.WorkoutDao
+import com.erdevelopments.powerpath.data.local.dao.*
 
 @Database(
     entities = [
@@ -15,9 +11,11 @@ import com.erdevelopments.powerpath.data.local.dao.WorkoutDao
         PlanEntity::class,
         WorkoutEntity::class,
         PlanWorkoutEntity::class,
-        DayPlanEntity::class
+
+        DayPlanEntity::class,
+        DayPlanWorkoutEntity::class
     ],
-    version = 3,
+    version = 5, // bump because schema changed
     exportSchema = true
 )
 abstract class PowerPathDatabase : RoomDatabase() {
@@ -26,4 +24,6 @@ abstract class PowerPathDatabase : RoomDatabase() {
     abstract fun planDao(): PlanDao
     abstract fun workoutDao(): WorkoutDao
     abstract fun planWorkoutDao(): PlanWorkoutDao
+    abstract fun dayPlanDao(): DayPlanDao
+    abstract fun dayPlanWorkoutDao(): DayPlanWorkoutDao
 }

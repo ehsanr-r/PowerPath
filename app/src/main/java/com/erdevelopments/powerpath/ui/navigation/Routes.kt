@@ -7,6 +7,8 @@ object Routes {
     const val ABOUT = "about"
     const val PROFILE = "profile"
     const val PLAN_DETAIL = "plan/{planId}"
+    const val DAY_DETAIL = "day/{dayId}"
 
     fun planDetail(planId: Long) = "plan/$planId"
+    fun dayDetail(dayId: Long) = "day/$dayId"
 }

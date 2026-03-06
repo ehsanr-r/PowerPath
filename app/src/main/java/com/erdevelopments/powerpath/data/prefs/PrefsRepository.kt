@@ -26,7 +26,9 @@ class PrefsRepository @Inject constructor(
         context.dataStore.edit { it[KEY_USER_ID] = id }
     }
 
-    suspend fun setSelectedDay(id: Long) {
-        context.dataStore.edit { it[KEY_DAY_ID] = id }
+    suspend fun setSelectedDay(id: Long?) {
+        context.dataStore.edit {
+            if (id == null) it.remove(KEY_DAY_ID) else it[KEY_DAY_ID] = id
+        }
     }
 }
