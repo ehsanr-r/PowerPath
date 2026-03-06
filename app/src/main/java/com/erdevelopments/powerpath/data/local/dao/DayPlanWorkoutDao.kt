@@ -6,7 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.erdevelopments.powerpath.data.local.DayPlanWorkoutEntity
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutItem
-import com.erdevelopments.powerpath.data.local.model.WorkoutProgressPoint
+import com.erdevelopments.powerpath.data.local.model.DayVolume
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -31,7 +31,13 @@ interface DayPlanWorkoutDao {
             dpw.reps AS overrideReps,
             dpw.restSeconds AS overrideRestSeconds,
 
-            COALESCE(dpw.isDone, 0) AS isDone
+            COALESCE((
+                SELECT COUNT(*)
+                FROM day_plan_workout_sets s
+                WHERE s.dayPlanId = dp.id AND s.workoutId = w.id AND s.isDone = 1
+            ), 0) AS doneSetCount,
+
+            COALESCE(dpw.sets, pw.sets) AS totalSetCount
         FROM day_plans dp
         INNER JOIN plan_workouts pw ON pw.planId = dp.planId
         INNER JOIN workouts w ON w.id = pw.workoutId
@@ -47,36 +53,34 @@ interface DayPlanWorkoutDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: DayPlanWorkoutEntity)
 
-    @Query("DELETE FROM day_plan_workouts WHERE dayPlanId = :dayPlanId AND workoutId = :workoutId")
+    @Query(
+        """
+        DELETE FROM day_plan_workouts
+        WHERE dayPlanId = :dayPlanId AND workoutId = :workoutId
+        """
+    )
     suspend fun delete(dayPlanId: Long, workoutId: Long)
 
     @Query("DELETE FROM day_plan_workouts WHERE dayPlanId = :dayPlanId")
     suspend fun clear(dayPlanId: Long)
 
-
     @Query(
         """
-        SELECT
+        SELECT 
             d.id AS dayId,
             d.name AS dayName,
-
-            COALESCE(MAX(COALESCE(dpw.weightKg, pw.weightKg)), 0) AS maxWeightKg,
-            COALESCE(SUM(COALESCE(dpw.sets, pw.sets)), 0) AS totalSets,
-            COALESCE(SUM(COALESCE(dpw.sets, pw.sets) * COALESCE(dpw.reps, pw.reps)), 0) AS totalReps,
             COALESCE(SUM(
-                COALESCE(dpw.weightKg, pw.weightKg) *
-                COALESCE(dpw.sets, pw.sets) *
-                COALESCE(dpw.reps, pw.reps)
-            ), 0) AS totalVolume
+                CASE WHEN s.isDone = 1 THEN
+                    s.weightKg * s.reps
+                ELSE 0 END
+            ), 0) AS volume
         FROM days d
-        INNER JOIN day_plans dp ON dp.dayId = d.id
-        INNER JOIN plan_workouts pw ON pw.planId = dp.planId AND pw.workoutId = :workoutId
-        INNER JOIN day_plan_workouts dpw ON dpw.dayPlanId = dp.id AND dpw.workoutId = :workoutId
+        LEFT JOIN day_plans dp ON dp.dayId = d.id
+        LEFT JOIN day_plan_workout_sets s ON s.dayPlanId = dp.id
         WHERE d.userId = :userId
-          AND dpw.isDone = 1
         GROUP BY d.id
         ORDER BY d.orderIndex ASC, d.id ASC
         """
     )
-    fun observeWorkoutProgress(userId: Long, workoutId: Long): Flow<List<WorkoutProgressPoint>>
+    fun observeDayVolumes(userId: Long): Flow<List<DayVolume>>
 }

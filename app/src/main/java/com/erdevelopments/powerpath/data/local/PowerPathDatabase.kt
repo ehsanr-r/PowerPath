@@ -11,11 +11,11 @@ import com.erdevelopments.powerpath.data.local.dao.*
         PlanEntity::class,
         WorkoutEntity::class,
         PlanWorkoutEntity::class,
-
         DayPlanEntity::class,
-        DayPlanWorkoutEntity::class
+        DayPlanWorkoutEntity::class,
+        DayPlanWorkoutSetEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class PowerPathDatabase : RoomDatabase() {
@@ -26,4 +26,5 @@ abstract class PowerPathDatabase : RoomDatabase() {
     abstract fun planWorkoutDao(): PlanWorkoutDao
     abstract fun dayPlanDao(): DayPlanDao
     abstract fun dayPlanWorkoutDao(): DayPlanWorkoutDao
+    abstract fun dayPlanWorkoutSetDao(): DayPlanWorkoutSetDao
 }

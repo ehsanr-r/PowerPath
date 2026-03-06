@@ -6,6 +6,7 @@ import com.erdevelopments.powerpath.data.local.PowerPathDatabase
 import com.erdevelopments.powerpath.data.local.dao.DayDao
 import com.erdevelopments.powerpath.data.local.dao.DayPlanDao
 import com.erdevelopments.powerpath.data.local.dao.DayPlanWorkoutDao
+import com.erdevelopments.powerpath.data.local.dao.DayPlanWorkoutSetDao
 import com.erdevelopments.powerpath.data.local.dao.PlanDao
 import com.erdevelopments.powerpath.data.local.dao.PlanWorkoutDao
 import com.erdevelopments.powerpath.data.local.dao.UserDao
@@ -35,6 +36,10 @@ object AppModule {
             .fallbackToDestructiveMigration()
             .build()
     }
+
+    @Provides
+    fun provideDayPlanWorkoutSetDao(db: PowerPathDatabase): DayPlanWorkoutSetDao =
+        db.dayPlanWorkoutSetDao()
 
     @Provides fun provideUserDao(db: PowerPathDatabase): UserDao = db.userDao()
     @Provides fun provideDayDao(db: PowerPathDatabase): DayDao = db.dayDao()

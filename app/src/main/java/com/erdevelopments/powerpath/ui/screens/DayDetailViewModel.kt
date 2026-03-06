@@ -4,14 +4,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.erdevelopments.powerpath.data.local.DayPlanEntity
 import com.erdevelopments.powerpath.data.local.DayPlanWorkoutEntity
+import com.erdevelopments.powerpath.data.local.DayPlanWorkoutSetEntity
 import com.erdevelopments.powerpath.data.local.PlanEntity
 import com.erdevelopments.powerpath.data.local.dao.DayDao
 import com.erdevelopments.powerpath.data.local.dao.DayPlanDao
 import com.erdevelopments.powerpath.data.local.dao.DayPlanWorkoutDao
+import com.erdevelopments.powerpath.data.local.dao.DayPlanWorkoutSetDao
 import com.erdevelopments.powerpath.data.local.dao.PlanDao
 import com.erdevelopments.powerpath.data.local.model.DayPlanItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanProgress
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutItem
+import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutSetItem
 import com.erdevelopments.powerpath.data.prefs.PrefsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -24,6 +27,7 @@ class DayDetailViewModel @Inject constructor(
     private val planDao: PlanDao,
     private val dayPlanDao: DayPlanDao,
     private val dayPlanWorkoutDao: DayPlanWorkoutDao,
+    private val dayPlanWorkoutSetDao: DayPlanWorkoutSetDao,
     private val prefs: PrefsRepository
 ) : ViewModel() {
 
@@ -34,6 +38,7 @@ class DayDetailViewModel @Inject constructor(
     private val assignedPlanFlows = mutableMapOf<Long, StateFlow<List<DayPlanItem>>>()
     private val progressFlows = mutableMapOf<Long, StateFlow<DayPlanProgress?>>()
     private val workoutFlows = mutableMapOf<Long, StateFlow<List<DayPlanWorkoutItem>>>()
+    private val setFlows = mutableMapOf<String, StateFlow<List<DayPlanWorkoutSetItem>>>()
 
     fun observeDayName(dayId: Long): StateFlow<String> {
         return dayNameFlows.getOrPut(dayId) {
@@ -68,6 +73,14 @@ class DayDetailViewModel @Inject constructor(
         }
     }
 
+    fun observeWorkoutSets(dayPlanId: Long, workoutId: Long): StateFlow<List<DayPlanWorkoutSetItem>> {
+        val key = "$dayPlanId-$workoutId"
+        return setFlows.getOrPut(key) {
+            dayPlanWorkoutSetDao.observeSets(dayPlanId, workoutId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        }
+    }
+
     fun addPlanToDay(dayId: Long, planId: Long) {
         viewModelScope.launch {
             val nextOrder = dayPlanDao.nextOrderIndex(dayId)
@@ -83,23 +96,90 @@ class DayDetailViewModel @Inject constructor(
         }
     }
 
-    fun toggleDone(item: DayPlanWorkoutItem, done: Boolean) {
+    suspend fun ensureDefaultSets(item: DayPlanWorkoutItem) {
+        val current = dayPlanWorkoutSetDao.observeSets(item.dayPlanId, item.workoutId).first()
+        if (current.isNotEmpty()) return
+
+        val sets = (1..item.effectiveSets).map { setNo ->
+            DayPlanWorkoutSetEntity(
+                dayPlanId = item.dayPlanId,
+                workoutId = item.workoutId,
+                setNumber = setNo,
+                weightKg = item.effectiveWeightKg,
+                reps = item.effectiveReps,
+                isDone = false
+            )
+        }
+        dayPlanWorkoutSetDao.upsertAll(sets)
+    }
+
+    fun ensureSets(item: DayPlanWorkoutItem) {
+        viewModelScope.launch { ensureDefaultSets(item) }
+    }
+
+    fun toggleSet(
+        item: DayPlanWorkoutItem,
+        setNumber: Int,
+        weightKg: Float,
+        reps: Int,
+        done: Boolean
+    ) {
         viewModelScope.launch {
-            dayPlanWorkoutDao.upsert(
-                DayPlanWorkoutEntity(
+            ensureDefaultSets(item)
+            dayPlanWorkoutSetDao.upsert(
+                DayPlanWorkoutSetEntity(
                     dayPlanId = item.dayPlanId,
                     workoutId = item.workoutId,
-                    isDone = done,
-                    weightKg = item.overrideWeightKg,
-                    sets = item.overrideSets,
-                    reps = item.overrideReps,
-                    restSeconds = item.overrideRestSeconds
+                    setNumber = setNumber,
+                    weightKg = weightKg,
+                    reps = reps,
+                    isDone = done
                 )
             )
         }
     }
 
-    fun saveOverrides(
+    fun updateSet(
+        item: DayPlanWorkoutItem,
+        setNumber: Int,
+        weightKg: Float,
+        reps: Int,
+        done: Boolean
+    ) {
+        viewModelScope.launch {
+            ensureDefaultSets(item)
+            dayPlanWorkoutSetDao.upsert(
+                DayPlanWorkoutSetEntity(
+                    dayPlanId = item.dayPlanId,
+                    workoutId = item.workoutId,
+                    setNumber = setNumber,
+                    weightKg = weightKg,
+                    reps = reps,
+                    isDone = done
+                )
+            )
+        }
+    }
+
+    fun toggleAllSets(item: DayPlanWorkoutItem, done: Boolean) {
+        viewModelScope.launch {
+            ensureDefaultSets(item)
+            val sets = observeWorkoutSets(item.dayPlanId, item.workoutId).value
+            val updated = sets.map {
+                DayPlanWorkoutSetEntity(
+                    dayPlanId = it.dayPlanId,
+                    workoutId = it.workoutId,
+                    setNumber = it.setNumber,
+                    weightKg = it.weightKg,
+                    reps = it.reps,
+                    isDone = done
+                )
+            }
+            dayPlanWorkoutSetDao.upsertAll(updated)
+        }
+    }
+
+    fun saveWorkoutOverrides(
         item: DayPlanWorkoutItem,
         weightKg: Float?,
         sets: Int?,
@@ -111,11 +191,21 @@ class DayDetailViewModel @Inject constructor(
                 DayPlanWorkoutEntity(
                     dayPlanId = item.dayPlanId,
                     workoutId = item.workoutId,
-                    isDone = item.isDone,
+                    isDone = false,
                     weightKg = weightKg,
                     sets = sets,
                     reps = reps,
                     restSeconds = restSeconds
+                )
+            )
+
+            dayPlanWorkoutSetDao.deleteForWorkout(item.dayPlanId, item.workoutId)
+            ensureDefaultSets(
+                item.copy(
+                    overrideWeightKg = weightKg,
+                    overrideSets = sets,
+                    overrideReps = reps,
+                    overrideRestSeconds = restSeconds
                 )
             )
         }
@@ -124,6 +214,7 @@ class DayDetailViewModel @Inject constructor(
     fun resetToTemplate(item: DayPlanWorkoutItem) {
         viewModelScope.launch {
             dayPlanWorkoutDao.delete(item.dayPlanId, item.workoutId)
+            dayPlanWorkoutSetDao.deleteForWorkout(item.dayPlanId, item.workoutId)
         }
     }
 }

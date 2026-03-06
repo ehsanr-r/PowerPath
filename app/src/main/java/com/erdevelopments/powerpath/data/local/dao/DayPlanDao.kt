@@ -21,7 +21,7 @@ interface DayPlanDao {
     @Query("DELETE FROM day_plans WHERE id = :dayPlanId")
     suspend fun deleteById(dayPlanId: Long)
 
-    // Stable parent list: no done counts here
+
     @Query(
         """
         SELECT
@@ -38,21 +38,35 @@ interface DayPlanDao {
     )
     fun observeDayPlans(dayId: Long): Flow<List<DayPlanItem>>
 
-    // Per-card progress: updates only one card when workouts change
+
+
     @Query(
         """
-        SELECT
-            dp.id AS dayPlanId,
-            COUNT(pw.workoutId) AS totalWorkouts,
-            SUM(CASE WHEN COALESCE(dpw.isDone, 0) = 1 THEN 1 ELSE 0 END) AS doneWorkouts
-        FROM day_plans dp
-        LEFT JOIN plan_workouts pw ON pw.planId = dp.planId
-        LEFT JOIN day_plan_workouts dpw
-            ON dpw.dayPlanId = dp.id
-            AND dpw.workoutId = pw.workoutId
-        WHERE dp.id = :dayPlanId
-        GROUP BY dp.id
-        """
+    SELECT
+        dp.id AS dayPlanId,
+        COUNT(pw.workoutId) AS totalWorkouts,
+        SUM(
+            CASE 
+                WHEN (
+                    SELECT COUNT(*)
+                    FROM day_plan_workout_sets s
+                    WHERE s.dayPlanId = dp.id
+                      AND s.workoutId = pw.workoutId
+                      AND s.isDone = 1
+                ) = COALESCE(dpw.sets, pw.sets)
+                AND COALESCE(dpw.sets, pw.sets) > 0
+                THEN 1
+                ELSE 0
+            END
+        ) AS doneWorkouts
+    FROM day_plans dp
+    LEFT JOIN plan_workouts pw ON pw.planId = dp.planId
+    LEFT JOIN day_plan_workouts dpw
+        ON dpw.dayPlanId = dp.id
+        AND dpw.workoutId = pw.workoutId
+    WHERE dp.id = :dayPlanId
+    GROUP BY dp.id
+    """
     )
     fun observeDayPlanProgress(dayPlanId: Long): Flow<DayPlanProgress?>
 }

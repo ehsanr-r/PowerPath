@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.erdevelopments.powerpath.data.local.PlanEntity
 import com.erdevelopments.powerpath.data.local.model.DayPlanItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutItem
+import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutSetItem
 
 @Composable
 fun DayDetailScreen(
@@ -92,12 +93,7 @@ fun DayDetailScreen(
                                     expandedDayPlanId = -1L
                                 }
                                 vm.removePlanFromDay(dayPlan.dayPlanId)
-                            },
-                            onToggleDone = { item, done -> vm.toggleDone(item, done) },
-                            onSaveOverrides = { item, w, s, r, rest ->
-                                vm.saveOverrides(item, w, s, r, rest)
-                            },
-                            onReset = { item -> vm.resetToTemplate(item) }
+                            }
                         )
                     }
                 }
@@ -123,9 +119,6 @@ private fun DayPlanCardContainer(
     expanded: Boolean,
     onToggleExpand: () -> Unit,
     onRemove: () -> Unit,
-    onToggleDone: (DayPlanWorkoutItem, Boolean) -> Unit,
-    onSaveOverrides: (DayPlanWorkoutItem, Float?, Int?, Int?, Int?) -> Unit,
-    onReset: (DayPlanWorkoutItem) -> Unit,
     vm: DayDetailViewModel = hiltViewModel()
 ) {
     val progress by vm.observeDayPlanProgress(dayPlan.dayPlanId).collectAsStateWithLifecycle()
@@ -138,10 +131,7 @@ private fun DayPlanCardContainer(
         expanded = expanded,
         onToggleExpand = onToggleExpand,
         onRemove = onRemove,
-        workouts = if (expanded) workouts else emptyList(),
-        onToggleDone = onToggleDone,
-        onSaveOverrides = onSaveOverrides,
-        onReset = onReset
+        workouts = if (expanded) workouts else emptyList()
     )
 }
 
@@ -154,12 +144,8 @@ private fun DayPlanCard(
     onToggleExpand: () -> Unit,
     onRemove: () -> Unit,
     workouts: List<DayPlanWorkoutItem>,
-    onToggleDone: (DayPlanWorkoutItem, Boolean) -> Unit,
-    onSaveOverrides: (DayPlanWorkoutItem, Float?, Int?, Int?, Int?) -> Unit,
-    onReset: (DayPlanWorkoutItem) -> Unit
+    vm: DayDetailViewModel = hiltViewModel()
 ) {
-    var editTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
-
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Row(
@@ -169,7 +155,7 @@ private fun DayPlanCard(
                 Column(Modifier.weight(1f)) {
                     Text(dayPlan.planName, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "$doneWorkouts/$totalWorkouts done",
+                        "$doneWorkouts/$totalWorkouts workouts complete",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -193,56 +179,144 @@ private fun DayPlanCard(
                 if (workouts.isEmpty()) {
                     Text("This plan has no workouts (add workouts in Plans tab).")
                 } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         workouts.forEach { item ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { editTarget = item },
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(Modifier.weight(1f)) {
-                                    Checkbox(
-                                        checked = item.isDone,
-                                        onCheckedChange = { checked ->
-                                            onToggleDone(item, checked)
-                                        }
-                                    )
-
-                                    Column(Modifier.padding(top = 6.dp)) {
-                                        Text(item.workoutName)
-                                        Text(
-                                            "${item.bodyPart} • ${item.effectiveWeightKg}kg • ${item.effectiveSets}x${item.effectiveReps} • Rest ${item.effectiveRestSeconds}s",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    if (item.isDone) "✓" else "",
-                                    modifier = Modifier.padding(top = 12.dp)
-                                )
-                            }
+                            vm.ensureSets(item)
+                            WorkoutWithSetsCard(item = item)
                         }
                     }
                 }
             }
         }
     }
+}
 
-    editTarget?.let { item ->
+@Composable
+private fun WorkoutWithSetsCard(
+    item: DayPlanWorkoutItem,
+    vm: DayDetailViewModel = hiltViewModel()
+) {
+    val sets by vm.observeWorkoutSets(item.dayPlanId, item.workoutId).collectAsStateWithLifecycle()
+    var editTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(Modifier.weight(1f)) {
+                    Checkbox(
+                        checked = item.isDone,
+                        onCheckedChange = { checked ->
+                            vm.toggleAllSets(item, checked)
+                        }
+                    )
+                    Column(Modifier.padding(top = 6.dp)) {
+                        Text(item.workoutName)
+                        Text(
+                            "${item.bodyPart} • ${item.effectiveWeightKg}kg • ${item.effectiveSets}x${item.effectiveReps} • Rest ${item.effectiveRestSeconds}s",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                TextButton(onClick = { editTarget = item }) {
+                    Text("Edit")
+                }
+            }
+
+            sets.forEach { setItem ->
+                SetRow(
+                    setItem = setItem,
+                    onCheckedChange = { checked ->
+                        vm.toggleSet(
+                            item = item,
+                            setNumber = setItem.setNumber,
+                            weightKg = setItem.weightKg,
+                            reps = setItem.reps,
+                            done = checked
+                        )
+                    },
+                    onValueChange = { weight, reps ->
+                        vm.updateSet(
+                            item = item,
+                            setNumber = setItem.setNumber,
+                            weightKg = weight,
+                            reps = reps,
+                            done = setItem.isDone
+                        )
+                    }
+                )
+            }
+        }
+    }
+
+    editTarget?.let {
         EditDayWorkoutDialog(
-            item = item,
+            item = it,
             onDismiss = { editTarget = null },
             onSave = { w, s, r, rest ->
-                onSaveOverrides(item, w, s, r, rest)
+                vm.saveWorkoutOverrides(it, w, s, r, rest)
                 editTarget = null
             },
             onReset = {
-                onReset(item)
+                vm.resetToTemplate(it)
                 editTarget = null
             }
         )
+    }
+}
+
+@Composable
+private fun SetRow(
+    setItem: DayPlanWorkoutSetItem,
+    onCheckedChange: (Boolean) -> Unit,
+    onValueChange: (Float, Int) -> Unit
+) {
+    var weight by remember(setItem.weightKg) { mutableStateOf(setItem.weightKg.toString()) }
+    var reps by remember(setItem.reps) { mutableStateOf(setItem.reps.toString()) }
+
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Checkbox(
+                checked = setItem.isDone,
+                onCheckedChange = onCheckedChange
+            )
+
+            Text("Set ${setItem.setNumber}", modifier = Modifier.padding(top = 14.dp))
+
+            OutlinedTextField(
+                value = weight,
+                onValueChange = {
+                    weight = it
+                    val w = it.toFloatOrNull()
+                    val r = reps.toIntOrNull()
+                    if (w != null && r != null) onValueChange(w, r)
+                },
+                label = { Text("Weight") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            )
+
+            OutlinedTextField(
+                value = reps,
+                onValueChange = {
+                    reps = it
+                    val w = weight.toFloatOrNull()
+                    val r = it.toIntOrNull()
+                    if (w != null && r != null) onValueChange(w, r)
+                },
+                label = { Text("Reps") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+        }
     }
 }
 
@@ -259,21 +333,16 @@ private fun AddPlanToDayDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add plan to day") },
         confirmButton = {
-            TextButton(
-                enabled = selectedId != 0L,
-                onClick = { onAdd(selectedId) }
-            ) {
+            TextButton(enabled = selectedId != 0L, onClick = { onAdd(selectedId) }) {
                 Text("Add")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         },
         text = {
             if (plans.isEmpty()) {
-                Text("All available plans are already added to this day.")
+                Text("No plans available.")
             } else {
                 ExposedDropdownMenuBox(
                     expanded = expanded,
@@ -290,9 +359,7 @@ private fun AddPlanToDayDialog(
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
 
                     ExposedDropdownMenu(
