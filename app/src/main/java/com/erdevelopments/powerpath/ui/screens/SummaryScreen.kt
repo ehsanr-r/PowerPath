@@ -53,7 +53,7 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
         }
 
         if (dayVolumes.isNotEmpty()) {
-            items(dayVolumes, key = { it.dayId }) { dv ->
+            items(dayVolumes, key = { "day_volume_${it.dayId}" }) { dv ->
                 Card(Modifier.fillMaxWidth()) {
                     Row(
                         Modifier.fillMaxWidth().padding(12.dp),
@@ -122,7 +122,7 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
                     Text("History", style = MaterialTheme.typography.titleSmall)
                 }
 
-                items(progress, key = { it.dayId }) { p ->
+                items(progress, key = { "workout_progress_${it.dayId}" }) { p ->
                     Card(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(p.dayName, style = MaterialTheme.typography.titleMedium)
