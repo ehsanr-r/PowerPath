@@ -27,13 +27,14 @@ fun PlansScreen(
     val selectedDayId by vm.selectedDayId.collectAsStateWithLifecycle()
     val days by vm.days.collectAsStateWithLifecycle()
     val plans by vm.plans.collectAsStateWithLifecycle()
+    val hasWorkouts by vm.hasWorkouts.collectAsStateWithLifecycle()
 
     var renameTarget by remember { mutableStateOf<PlanEntity?>(null) }
     var dayMenuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         floatingActionButton = {
-            PowerPathFab(onClick = { if (selectedDayId != null) vm.addPlan()  }, enabled = selectedDayId != null) {
+            PowerPathFab(onClick = { if (selectedDayId != null) vm.addPlan()  }, enabled = hasWorkouts) {
                 Icon(Icons.Default.Add, contentDescription = "Add plan")
             }
         }

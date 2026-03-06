@@ -11,13 +11,13 @@ import androidx.room.PrimaryKey
         entity = DayEntity::class,
         parentColumns = ["id"],
         childColumns = ["dayId"],
-        onDelete = ForeignKey.CASCADE
+        onDelete = ForeignKey.SET_NULL
     )],
     indices = [Index("dayId")]
 )
 data class PlanEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val dayId: Long,
+    val dayId: Long? = null,
     val name: String,
     val orderIndex: Int
 )

@@ -6,11 +6,13 @@ import com.erdevelopments.powerpath.data.local.DayEntity
 import com.erdevelopments.powerpath.data.local.PlanEntity
 import com.erdevelopments.powerpath.data.local.dao.DayDao
 import com.erdevelopments.powerpath.data.local.dao.PlanDao
+import com.erdevelopments.powerpath.data.local.dao.WorkoutDao
 import com.erdevelopments.powerpath.data.prefs.PrefsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,6 +21,7 @@ import javax.inject.Inject
 class PlansViewModel @Inject constructor(
     private val dayDao: DayDao,
     private val planDao: PlanDao,
+    private val workoutDao: WorkoutDao,
     private val prefs: PrefsRepository
 ) : ViewModel() {
 
@@ -34,10 +37,16 @@ class PlansViewModel @Inject constructor(
             else dayDao.observeDays(uid)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val hasWorkouts: StateFlow<Boolean> =
+        workoutDao.observeWorkouts()
+            .map { it.isNotEmpty() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    // ✅ show all plans if no day selected, else filter for the day
     val plans: StateFlow<List<PlanEntity>> =
         selectedDayId.flatMapLatest { dayId ->
-            if (dayId == null) kotlinx.coroutines.flow.flowOf(emptyList())
-            else planDao.observePlans(dayId)
+            if (dayId == null) planDao.observeAllPlans()
+            else planDao.observePlansForDay(dayId)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun selectDay(dayId: Long) {
@@ -46,11 +55,19 @@ class PlansViewModel @Inject constructor(
 
     fun addPlan() {
         viewModelScope.launch {
-            val dayId = selectedDayId.value ?: return@launch
-            val count = planDao.countForDay(dayId)
-            val nextOrder = planDao.nextOrderIndex(dayId)
+            val dayId = selectedDayId.value  // can be null
+
+            val count = planDao.countAll()
+            val nextOrder = planDao.nextOrderIndexGlobal()
             val name = "Plan ${count + 1}"
-            planDao.insert(PlanEntity(dayId = dayId, name = name, orderIndex = nextOrder))
+
+            planDao.insert(
+                PlanEntity(
+                    dayId = dayId,
+                    name = name,
+                    orderIndex = nextOrder
+                )
+            )
         }
     }
 

@@ -1,28 +1,23 @@
 package com.erdevelopments.powerpath.data.local.dao
 
-import androidx.room.Dao
-import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.Query
-import androidx.room.Update
+import androidx.room.*
 import com.erdevelopments.powerpath.data.local.PlanEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PlanDao {
 
+    @Query("SELECT * FROM plans ORDER BY orderIndex ASC, id ASC")
+    fun observeAllPlans(): Flow<List<PlanEntity>>
+
     @Query("SELECT * FROM plans WHERE dayId = :dayId ORDER BY orderIndex ASC, id ASC")
-    fun observePlans(dayId: Long): Flow<List<PlanEntity>>
+    fun observePlansForDay(dayId: Long): Flow<List<PlanEntity>>
 
-    @Query("SELECT * FROM plans WHERE id = :planId")
-    suspend fun getById(planId: Long): PlanEntity?
+    @Query("SELECT COUNT(*) FROM plans")
+    suspend fun countAll(): Int
 
-    // Default name: "Plan " + (count + 1)
-    @Query("SELECT COUNT(*) FROM plans WHERE dayId = :dayId")
-    suspend fun countForDay(dayId: Long): Int
-
-    @Query("SELECT COALESCE(MAX(orderIndex), -1) + 1 FROM plans WHERE dayId = :dayId")
-    suspend fun nextOrderIndex(dayId: Long): Int
+    @Query("SELECT COALESCE(MAX(orderIndex), -1) + 1 FROM plans")
+    suspend fun nextOrderIndexGlobal(): Int
 
     @Insert
     suspend fun insert(plan: PlanEntity): Long
@@ -33,9 +28,12 @@ interface PlanDao {
     @Query("UPDATE plans SET name = :name WHERE id = :planId")
     suspend fun updateName(planId: Long, name: String)
 
+    @Query("UPDATE plans SET dayId = :dayId WHERE id = :planId")
+    suspend fun setPlanDay(planId: Long, dayId: Long?)
+
     @Delete
     suspend fun delete(plan: PlanEntity)
 
-    @Query("DELETE FROM plans WHERE dayId = :dayId")
-    suspend fun deleteAllForDay(dayId: Long)
+    @Query("SELECT * FROM plans WHERE id = :planId")
+    suspend fun getById(planId: Long): PlanEntity?
 }
