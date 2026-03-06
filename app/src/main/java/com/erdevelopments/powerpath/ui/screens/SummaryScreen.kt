@@ -7,14 +7,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.erdevelopments.powerpath.ui.components.SimpleBarChart
-import com.erdevelopments.powerpath.ui.components.SimpleLineChart
-import kotlin.math.roundToInt
+import com.erdevelopments.powerpath.ui.components.WorkoutBarItem
+import com.erdevelopments.powerpath.ui.components.WorkoutProgressBarChart
 
 @Composable
 fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
@@ -24,9 +23,6 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
     val workouts by vm.workouts.collectAsStateWithLifecycle()
     val selectedWorkoutId by vm.selectedWorkoutId.collectAsStateWithLifecycle()
     val progress by vm.workoutProgress.collectAsStateWithLifecycle()
-
-    // metric selector for progress chart
-    var metric by rememberSaveable { mutableStateOf(ProgressMetric.VOLUME) }
 
     if (userId == null) {
         Column(Modifier.padding(16.dp)) {
@@ -41,20 +37,20 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ---------------- Volume by day (existing) ----------------
-        item {
-            Text("Summary", style = MaterialTheme.typography.titleLarge)
-        }
+        item { Text("Summary", style = MaterialTheme.typography.titleLarge) }
 
-        if (dayVolumes.isEmpty()) {
-            item { Text("No data yet. Create days, plans, and mark workouts done.") }
-        } else {
-            item {
-                Text("Volume by Day", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
+        // ----------------- Section 1: Volume by day -----------------
+        item {
+            Text("Volume by Day", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            if (dayVolumes.isEmpty()) {
+                Text("No data yet. Mark workouts as done in a Day to generate summary.")
+            } else {
                 SimpleBarChart(values = dayVolumes.map { it.volume })
             }
+        }
 
+        if (dayVolumes.isNotEmpty()) {
             items(dayVolumes, key = { it.dayId }) { dv ->
                 Card(Modifier.fillMaxWidth()) {
                     Row(
@@ -68,11 +64,11 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
             }
         }
 
-        // ---------------- Workout progress (new) ----------------
+        // ----------------- Section 2: Workout progress -----------------
         item {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Divider()
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Text("Workout progress", style = MaterialTheme.typography.titleMedium)
         }
 
@@ -84,49 +80,43 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
             )
         }
 
-        if (selectedWorkoutId == null) {
-            item {
-                Text("Pick a workout to see your progress over days.")
+        when {
+            selectedWorkoutId == null -> {
+                item { Text("Pick a workout to see progress across days.") }
             }
-        } else if (progress.isEmpty()) {
-            item {
-                Text("No completed entries for this workout yet. Mark it Done in a Day.")
+            progress.isEmpty() -> {
+                item { Text("No completed entries for this workout yet. Mark it Done in Day detail.") }
             }
-        } else {
-            item {
-                ProgressMetricTabs(
-                    selected = metric,
-                    onSelected = { metric = it }
-                )
-            }
+            else -> {
+                item {
+                    val barItems = progress.map { p ->
+                        WorkoutBarItem(
+                            dayLabel = p.dayName,
+                            volume = p.totalVolume,
+                            weightKg = p.maxWeightKg,
+                            sets = p.totalSets,
+                            reps = p.totalReps
+                        )
+                    }
 
-            item {
-                val values = when (metric) {
-                    ProgressMetric.WEIGHT -> progress.map { it.maxWeightKg }
-                    ProgressMetric.SETS -> progress.map { it.totalSets.toFloat() }
-                    ProgressMetric.REPS -> progress.map { it.totalReps.toFloat() }
-                    ProgressMetric.VOLUME -> progress.map { it.totalVolume }
+                    Text("Volume bars (left axis = total volume)", style = MaterialTheme.typography.titleSmall)
+                    Spacer(Modifier.height(8.dp))
+                    WorkoutProgressBarChart(items = barItems)
                 }
 
-                Text(metric.title, style = MaterialTheme.typography.titleSmall)
-                Spacer(Modifier.height(8.dp))
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    Text("History", style = MaterialTheme.typography.titleSmall)
+                }
 
-                // Use line chart for all metrics (simple, clear)
-                SimpleLineChart(values = values)
-            }
-
-            item {
-                Spacer(Modifier.height(6.dp))
-                Text("History", style = MaterialTheme.typography.titleSmall)
-            }
-
-            items(progress, key = { it.dayId }) { p ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(p.dayName, style = MaterialTheme.typography.titleMedium)
-                        Text("Max weight: ${p.maxWeightKg} kg")
-                        Text("Sets: ${p.totalSets} • Total reps: ${p.totalReps}")
-                        Text("Volume: %,.0f".format(p.totalVolume))
+                items(progress, key = { it.dayId }) { p ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(p.dayName, style = MaterialTheme.typography.titleMedium)
+                            Text("Max weight: ${p.maxWeightKg} kg")
+                            Text("Sets: ${p.totalSets} • Total reps: ${p.totalReps}")
+                            Text("Volume: %,.0f".format(p.totalVolume))
+                        }
                     }
                 }
             }
@@ -134,37 +124,6 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
     }
 }
 
-private enum class ProgressMetric(val title: String) {
-    WEIGHT("Max weight (kg)"),
-    SETS("Total sets"),
-    REPS("Total reps"),
-    VOLUME("Total volume")
-}
-
-@Composable
-private fun ProgressMetricTabs(
-    selected: ProgressMetric,
-    onSelected: (ProgressMetric) -> Unit
-) {
-    val items = listOf(
-        ProgressMetric.WEIGHT,
-        ProgressMetric.SETS,
-        ProgressMetric.REPS,
-        ProgressMetric.VOLUME
-    )
-
-    TabRow(selectedTabIndex = items.indexOf(selected)) {
-        items.forEachIndexed { idx, m ->
-            Tab(
-                selected = m == selected,
-                onClick = { onSelected(m) },
-                text = { Text(m.name) }
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkoutPicker(
     workouts: List<Pair<Long, String>>,
