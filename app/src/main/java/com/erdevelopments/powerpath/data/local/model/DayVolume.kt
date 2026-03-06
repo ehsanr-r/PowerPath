@@ -1,4 +1,4 @@
-package com.erdevelopments.powerpath.data.local.dao
+package com.erdevelopments.powerpath.data.local.model
 
 data class DayVolume(
     val dayId: Long,
