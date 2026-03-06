@@ -2,9 +2,7 @@ package com.erdevelopments.powerpath.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.erdevelopments.powerpath.data.local.DayEntity
 import com.erdevelopments.powerpath.data.local.PlanEntity
-import com.erdevelopments.powerpath.data.local.dao.DayDao
 import com.erdevelopments.powerpath.data.local.dao.PlanDao
 import com.erdevelopments.powerpath.data.local.dao.WorkoutDao
 import com.erdevelopments.powerpath.data.prefs.PrefsRepository
@@ -19,7 +17,6 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PlansViewModel @Inject constructor(
-    private val dayDao: DayDao,
     private val planDao: PlanDao,
     private val workoutDao: WorkoutDao,
     private val prefs: PrefsRepository
@@ -28,42 +25,30 @@ class PlansViewModel @Inject constructor(
     val selectedUserId: StateFlow<Long?> =
         prefs.selectedUserId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val selectedDayId: StateFlow<Long?> =
-        prefs.selectedDayId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    val days: StateFlow<List<DayEntity>> =
-        selectedUserId.flatMapLatest { uid ->
-            if (uid == null) kotlinx.coroutines.flow.flowOf(emptyList())
-            else dayDao.observeDays(uid)
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
+    // ✅ enable plan creation only if at least 1 workout exists
     val hasWorkouts: StateFlow<Boolean> =
         workoutDao.observeWorkouts()
             .map { it.isNotEmpty() }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    // ✅ show all plans if no day selected, else filter for the day
+    // ✅ plans are just per user (no day filtering)
     val plans: StateFlow<List<PlanEntity>> =
-        selectedDayId.flatMapLatest { dayId ->
-            if (dayId == null) planDao.observeAllPlans()
-            else planDao.observePlansForDay(dayId)
+        selectedUserId.flatMapLatest { uid ->
+            if (uid == null) kotlinx.coroutines.flow.flowOf(emptyList())
+            else planDao.observePlans(uid)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    fun selectDay(dayId: Long) {
-        viewModelScope.launch { prefs.setSelectedDay(dayId) }
-    }
 
     fun addPlan() {
         viewModelScope.launch {
-            val dayId = selectedDayId.value  // can be null
+            val userId = selectedUserId.value ?: return@launch
 
-            val count = planDao.countAll()
-            val nextOrder = planDao.nextOrderIndexGlobal()
+            val count = planDao.countForUser(userId)
+            val nextOrder = planDao.nextOrderIndex(userId)
             val name = "Plan ${count + 1}"
 
             planDao.insert(
                 PlanEntity(
-                    dayId = dayId,
+                    userId = userId,
                     name = name,
                     orderIndex = nextOrder
                 )

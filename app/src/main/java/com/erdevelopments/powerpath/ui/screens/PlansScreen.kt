@@ -1,14 +1,26 @@
 package com.erdevelopments.powerpath.ui.screens
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,17 +36,17 @@ fun PlansScreen(
     vm: PlansViewModel = hiltViewModel()
 ) {
     val userId by vm.selectedUserId.collectAsStateWithLifecycle()
-    val selectedDayId by vm.selectedDayId.collectAsStateWithLifecycle()
-    val days by vm.days.collectAsStateWithLifecycle()
     val plans by vm.plans.collectAsStateWithLifecycle()
     val hasWorkouts by vm.hasWorkouts.collectAsStateWithLifecycle()
 
     var renameTarget by remember { mutableStateOf<PlanEntity?>(null) }
-    var dayMenuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         floatingActionButton = {
-            PowerPathFab(onClick = { if (selectedDayId != null) vm.addPlan()  }, enabled = hasWorkouts) {
+            PowerPathFab(
+                enabled = (userId != null) && hasWorkouts,
+                onClick = { vm.addPlan() }
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Add plan")
             }
         }
@@ -48,42 +60,12 @@ fun PlansScreen(
                 return@Column
             }
 
-            if (days.isEmpty()) {
-                Text("Create a Day first (Days tab).")
-                return@Column
+            if (!hasWorkouts) {
+                Text("Create at least 1 Workout first (Workouts tab) to start making plans.")
+                Spacer(Modifier.height(12.dp))
             }
 
-            // Day picker
-            ExposedDropdownMenuBox(
-                expanded = dayMenuOpen,
-                onExpandedChange = { dayMenuOpen = !dayMenuOpen }
-            ) {
-                val selectedName = days.firstOrNull { it.id == selectedDayId }?.name ?: "Select day"
-                OutlinedTextField(
-                    value = selectedName,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Day") },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(expanded = dayMenuOpen, onDismissRequest = { dayMenuOpen = false }) {
-                    days.forEach { d ->
-                        DropdownMenuItem(
-                            text = { Text(d.name) },
-                            onClick = {
-                                vm.selectDay(d.id)
-                                dayMenuOpen = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            if (selectedDayId == null) {
-                Text("Pick a day to see its plans.")
-            } else if (plans.isEmpty()) {
+            if (plans.isEmpty()) {
                 Text("No plans yet. Tap + to add one.")
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -95,7 +77,11 @@ fun PlansScreen(
                                 Modifier.fillMaxWidth().padding(12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(plan.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                Text(
+                                    plan.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
                                 Row {
                                     IconButton(onClick = { renameTarget = plan }) {
                                         Icon(Icons.Default.Edit, contentDescription = "Rename")

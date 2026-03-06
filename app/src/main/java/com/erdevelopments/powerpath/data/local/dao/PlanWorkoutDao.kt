@@ -100,8 +100,8 @@ interface PlanWorkoutDao {
         d.name AS dayName,
         COALESCE(SUM(pw.weightKg * pw.reps * pw.sets), 0) AS volume
     FROM days d
-    LEFT JOIN plans p ON p.dayId = d.id
-    LEFT JOIN plan_workouts pw ON pw.planId = p.id
+    LEFT JOIN day_plans dp ON dp.dayId = d.id
+    LEFT JOIN plan_workouts pw ON pw.planId = dp.planId
     WHERE d.userId = :userId
     GROUP BY d.id
     ORDER BY d.orderIndex ASC, d.id ASC
