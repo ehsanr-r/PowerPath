@@ -2,6 +2,7 @@ package com.erdevelopments.powerpath.ui.components
 
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -11,6 +12,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,7 +30,8 @@ data class WorkoutBarItem(
 fun WorkoutProgressBarChart(
     items: List<WorkoutBarItem>,
     modifier: Modifier = Modifier,
-    yAxisTicks: Int = 4
+    yAxisTicks: Int = 4,
+    onBarClick: ((WorkoutBarItem) -> Unit)? = null
 ) {
     val density = LocalDensity.current
     val labelSizePx = with(density) { 11.sp.toPx() }
@@ -40,7 +43,7 @@ fun WorkoutProgressBarChart(
 
     val maxValue = (items.maxOfOrNull { it.volume } ?: 0f).coerceAtLeast(1f)
 
-    val leftPad = with(density) { 54.dp.toPx() }   // space for y labels
+    val leftPad = with(density) { 54.dp.toPx() }   // y labels
     val bottomPad = with(density) { 26.dp.toPx() } // x labels
     val topPad = with(density) { 10.dp.toPx() }
     val rightPad = with(density) { 10.dp.toPx() }
@@ -63,7 +66,38 @@ fun WorkoutProgressBarChart(
         textAlign = Paint.Align.CENTER
     }
 
-    Canvas(modifier = modifier.fillMaxWidth().height(230.dp)) {
+    val clickableModifier =
+        if (onBarClick == null) modifier
+        else modifier.pointerInput(items, onBarClick) {
+            detectTapGestures { tap ->
+                if (items.isEmpty()) return@detectTapGestures
+
+                val chartW = size.width - leftPad - rightPad
+                val chartH = size.height - topPad - bottomPad
+                val originX = leftPad
+                val originY = topPad + chartH
+
+                // Only react if tap is inside chart area (not y labels / x labels)
+                if (tap.x < originX || tap.x > originX + chartW) return@detectTapGestures
+                if (tap.y < topPad || tap.y > originY) return@detectTapGestures
+
+                val n = items.size
+                val gap = (chartW * 0.10f) / (n + 1)
+                val barW = (chartW - gap * (n + 1)) / n
+
+                for (idx in 0 until n) {
+                    val barLeft = originX + gap + idx * (barW + gap)
+                    val barRight = barLeft + barW
+
+                    if (tap.x in barLeft..barRight) {
+                        onBarClick(items[idx])
+                        return@detectTapGestures
+                    }
+                }
+            }
+        }
+
+    Canvas(modifier = clickableModifier.fillMaxWidth().height(230.dp)) {
         val chartW = size.width - leftPad - rightPad
         val chartH = size.height - topPad - bottomPad
         val origin = Offset(leftPad, topPad + chartH)
@@ -92,7 +126,7 @@ fun WorkoutProgressBarChart(
         if (items.isEmpty()) return@Canvas
 
         val n = items.size
-        val gap = (chartW * 0.10f) / (n + 1)        // adaptive spacing
+        val gap = (chartW * 0.10f) / (n + 1)
         val barW = (chartW - gap * (n + 1)) / n
 
         items.forEachIndexed { idx, item ->

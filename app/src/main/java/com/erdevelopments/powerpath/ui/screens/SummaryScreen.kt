@@ -2,12 +2,14 @@
 
 package com.erdevelopments.powerpath.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -101,7 +103,18 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
 
                     Text("Volume bars (left axis = total volume)", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(8.dp))
-                    WorkoutProgressBarChart(items = barItems)
+                    val context = LocalContext.current
+
+                    WorkoutProgressBarChart(
+                        items = barItems,
+                        onBarClick = { item ->
+                            Toast.makeText(
+                                context,
+                                "${item.dayLabel}: Volume ${"%,.0f".format(item.volume)}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    )
                 }
 
                 item {
