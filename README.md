@@ -1,7 +1,7 @@
 # PowerPath
 
 <p align="center">
-  <img src="docs/logo.png" width="160"/>
+<img width="945" height="768" alt="powerpath" src="https://github.com/user-attachments/assets/a6df2f7f-e347-4800-b975-0f00e921514e" />
 </p>
 
 <p align="center">
