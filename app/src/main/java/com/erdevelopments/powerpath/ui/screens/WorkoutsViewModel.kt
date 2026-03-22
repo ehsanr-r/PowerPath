@@ -32,7 +32,7 @@ class WorkoutsViewModel @Inject constructor(
 
     fun addWorkout(
         name: String,
-        bodyPart: String,
+        bodyParts: List<String>,
         desc: String?,
         pickedImageUri: String?
     ) {
@@ -42,7 +42,7 @@ class WorkoutsViewModel @Inject constructor(
             workoutDao.insert(
                 WorkoutEntity(
                     name = name.trim(),
-                    bodyPart = bodyPart,
+                    bodyPart = bodyParts.joinToString(", "),
                     description = desc?.takeIf { it.isNotBlank() }?.trim(),
                     imageUri = savedImagePath
                 )
@@ -53,7 +53,7 @@ class WorkoutsViewModel @Inject constructor(
     fun updateWorkout(
         oldEntity: WorkoutEntity,
         name: String,
-        bodyPart: String,
+        bodyParts: List<String>,
         desc: String?,
         pickedImageUri: String?,
         removeImage: Boolean
@@ -76,7 +76,7 @@ class WorkoutsViewModel @Inject constructor(
             workoutDao.update(
                 oldEntity.copy(
                     name = name.trim(),
-                    bodyPart = bodyPart,
+                    bodyPart = bodyParts.joinToString(", "),
                     description = desc?.takeIf { it.isNotBlank() }?.trim(),
                     imageUri = finalImagePath
                 )

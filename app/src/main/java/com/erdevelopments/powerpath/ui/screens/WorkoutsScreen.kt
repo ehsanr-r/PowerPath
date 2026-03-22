@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,16 +23,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,15 +38,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -82,41 +80,12 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
                         items = workouts,
                         key = { "workout_${it.id}" }
                     ) { w ->
-                        Card(Modifier.fillMaxWidth()) {
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                WorkoutImage(
-                                    imagePath = w.imageUri,
-                                    modifier = Modifier.size(56.dp),
-                                    onClick = { path ->
-                                        fullscreenImagePath = path
-                                    }
-                                )
-
-                                Spacer(Modifier.size(12.dp))
-
-                                Column(Modifier.weight(1f)) {
-                                    Text(w.name, style = MaterialTheme.typography.titleMedium)
-                                    Text(w.bodyPart)
-                                    w.description?.let {
-                                        Text(it, style = MaterialTheme.typography.bodySmall)
-                                    }
-                                }
-
-                                Row {
-                                    IconButton(onClick = { editTarget = w }) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Edit")
-                                    }
-                                    IconButton(onClick = { vm.deleteWorkout(w) }) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete")
-                                    }
-                                }
-                            }
-                        }
+                        WorkoutListItem(
+                            workout = w,
+                            onEdit = { editTarget = w },
+                            onDelete = { vm.deleteWorkout(w) },
+                            onImageClick = { path -> fullscreenImagePath = path }
+                        )
                     }
                 }
             }
@@ -128,8 +97,8 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
             title = "New workout",
             initialWorkout = null,
             onDismiss = { showAdd = false },
-            onSave = { name, part, desc, pickedImageUri, removeImage ->
-                vm.addWorkout(name, part, desc, pickedImageUri)
+            onSave = { name, parts, desc, pickedImageUri, removeImage ->
+                vm.addWorkout(name, parts, desc, pickedImageUri)
                 showAdd = false
             }
         )
@@ -140,11 +109,11 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
             title = "Edit workout",
             initialWorkout = workout,
             onDismiss = { editTarget = null },
-            onSave = { name, part, desc, pickedImageUri, removeImage ->
+            onSave = { name, parts, desc, pickedImageUri, removeImage ->
                 vm.updateWorkout(
                     oldEntity = workout,
                     name = name,
-                    bodyPart = part,
+                    bodyParts = parts,
                     desc = desc,
                     pickedImageUri = pickedImageUri,
                     removeImage = removeImage
@@ -159,6 +128,70 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
             imagePath = path,
             onDismiss = { fullscreenImagePath = null }
         )
+    }
+}
+
+@Composable
+private fun WorkoutListItem(
+    workout: WorkoutEntity,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onImageClick: (String) -> Unit
+) {
+    var descriptionExpanded by remember(workout.id) { mutableStateOf(false) }
+
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            WorkoutImage(
+                imagePath = workout.imageUri,
+                modifier = Modifier.size(56.dp),
+                onClick = onImageClick
+            )
+
+            Spacer(Modifier.size(12.dp))
+
+            Column(Modifier.weight(1f)) {
+                Text(workout.name, style = MaterialTheme.typography.titleMedium)
+                Text(workout.bodyPart)
+
+                workout.description?.takeIf { it.isNotBlank() }?.let { desc ->
+                    Spacer(Modifier.height(4.dp))
+
+                    Text(
+                        text = desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = if (descriptionExpanded) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable {
+                            descriptionExpanded = !descriptionExpanded
+                        }
+                    )
+
+                    Text(
+                        text = if (descriptionExpanded) "Show less" else "Show more",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .padding(top = 2.dp)
+                            .clickable { descriptionExpanded = !descriptionExpanded }
+                    )
+                }
+            }
+
+            Row {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                }
+            }
+        }
     }
 }
 
@@ -240,19 +273,29 @@ private fun AddOrEditWorkoutDialog(
     onDismiss: () -> Unit,
     onSave: (
         name: String,
-        bodyPart: String,
+        bodyParts: List<String>,
         description: String,
         pickedImageUri: String?,
         removeImage: Boolean
     ) -> Unit
 ) {
     var name by remember { mutableStateOf(initialWorkout?.name ?: "") }
-    var part by remember { mutableStateOf(initialWorkout?.bodyPart ?: BODY_PARTS.first()) }
     var desc by remember { mutableStateOf(initialWorkout?.description ?: "") }
+
+    var selectedParts by remember {
+        mutableStateOf(
+            initialWorkout?.bodyPart
+                ?.split(",")
+                ?.map { it.trim() }
+                ?.filter { it.isNotBlank() }
+                ?.toSet()
+                ?: emptySet()
+        )
+    }
 
     var imageUri by remember { mutableStateOf<String?>(null) }
     var removeImage by remember { mutableStateOf(false) }
-    var expanded by remember { mutableStateOf(false) }
+    var showTypeDialog by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -267,9 +310,15 @@ private fun AddOrEditWorkoutDialog(
         title = { Text(title) },
         confirmButton = {
             TextButton(
-                enabled = name.isNotBlank(),
+                enabled = name.isNotBlank() && selectedParts.isNotEmpty(),
                 onClick = {
-                    onSave(name, part, desc, imageUri, removeImage)
+                    onSave(
+                        name,
+                        selectedParts.toList(),
+                        desc,
+                        imageUri,
+                        removeImage
+                    )
                 }
             ) {
                 Text("Save")
@@ -287,34 +336,28 @@ private fun AddOrEditWorkoutDialog(
                     singleLine = true
                 )
 
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    OutlinedTextField(
-                        value = part,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Body part") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                        },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        BODY_PARTS.forEach { p ->
-                            DropdownMenuItem(
-                                text = { Text(p) },
-                                onClick = {
-                                    part = p
-                                    expanded = false
-                                }
-                            )
+                OutlinedButton(onClick = { showTypeDialog = true }) {
+                    Text(
+                        if (selectedParts.isEmpty()) {
+                            "Select workout types"
+                        } else {
+                            selectedParts.joinToString(", ")
                         }
+                    )
+                }
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    selectedParts.forEach { part ->
+                        FilterChip(
+                            selected = true,
+                            onClick = {
+                                selectedParts = selectedParts - part
+                            },
+                            label = { Text(part) }
+                        )
                     }
                 }
 
@@ -348,6 +391,71 @@ private fun AddOrEditWorkoutDialog(
                         }) {
                             Text("Remove image")
                         }
+                    }
+                }
+            }
+        }
+    )
+
+    if (showTypeDialog) {
+        WorkoutTypesDialog(
+            selectedParts = selectedParts,
+            onDismiss = { showTypeDialog = false },
+            onApply = {
+                selectedParts = it
+                showTypeDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun WorkoutTypesDialog(
+    selectedParts: Set<String>,
+    onDismiss: () -> Unit,
+    onApply: (Set<String>) -> Unit
+) {
+    var tempSelected by remember { mutableStateOf(selectedParts) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Select workout types") },
+        confirmButton = {
+            TextButton(onClick = { onApply(tempSelected) }) {
+                Text("Apply")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        text = {
+            LazyColumn {
+                items(
+                    items = BODY_PARTS,
+                    key = { it }
+                ) { part ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                tempSelected =
+                                    if (part in tempSelected) tempSelected - part
+                                    else tempSelected + part
+                            }
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = part in tempSelected,
+                            onCheckedChange = { checked ->
+                                tempSelected =
+                                    if (checked) tempSelected + part
+                                    else tempSelected - part
+                            }
+                        )
+                        Text(part)
                     }
                 }
             }
