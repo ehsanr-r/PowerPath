@@ -2,6 +2,7 @@ package com.erdevelopments.powerpath.di
 
 import android.content.Context
 import androidx.room.Room
+import com.erdevelopments.powerpath.data.local.POWER_PATH_DB_NAME
 import com.erdevelopments.powerpath.data.local.PowerPathDatabase
 import com.erdevelopments.powerpath.data.local.dao.DayDao
 import com.erdevelopments.powerpath.data.local.dao.DayPlanDao
@@ -22,7 +23,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    private const val DB_NAME = "powerpath.db"
 
     @Provides
     @Singleton
@@ -30,7 +30,7 @@ object AppModule {
         return Room.databaseBuilder(
             context,
             PowerPathDatabase::class.java,
-            DB_NAME
+            POWER_PATH_DB_NAME
         )
             // During development only. Later replace with proper migrations.
             .fallbackToDestructiveMigration()
@@ -46,7 +46,6 @@ object AppModule {
     @Provides fun providePlanDao(db: PowerPathDatabase): PlanDao = db.planDao()
     @Provides fun provideWorkoutDao(db: PowerPathDatabase): WorkoutDao = db.workoutDao()
     @Provides fun providePlanWorkoutDao(db: PowerPathDatabase): PlanWorkoutDao = db.planWorkoutDao()
-
     @Provides fun provideDayPlanDao(db: PowerPathDatabase): DayPlanDao = db.dayPlanDao()
     @Provides fun provideDayPlanWorkoutDao(db: PowerPathDatabase): DayPlanWorkoutDao = db.dayPlanWorkoutDao()
 }

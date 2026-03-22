@@ -4,6 +4,9 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.erdevelopments.powerpath.data.local.dao.*
 
+
+const val POWER_PATH_DB_NAME = "powerpath.db"
+
 @Database(
     entities = [
         UserEntity::class,

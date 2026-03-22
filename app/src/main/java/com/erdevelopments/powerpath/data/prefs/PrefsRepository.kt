@@ -31,4 +31,11 @@ class PrefsRepository @Inject constructor(
             if (id == null) it.remove(KEY_DAY_ID) else it[KEY_DAY_ID] = id
         }
     }
+
+    suspend fun clearSelections() {
+        context.dataStore.edit {
+            it.remove(KEY_USER_ID)
+            it.remove(KEY_DAY_ID)
+        }
+    }
 }
