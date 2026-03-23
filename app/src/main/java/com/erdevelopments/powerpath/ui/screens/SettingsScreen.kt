@@ -4,10 +4,16 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -23,14 +29,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
+import java.io.File
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,10 +48,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val isBusy by vm.isBusy.collectAsStateWithLifecycle()
+    val importPreview by vm.importPreview.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-
-    var showImportWarning by remember { mutableStateOf(false) }
-    var showRestartDialog by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
@@ -57,7 +63,7 @@ fun SettingsScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
-            vm.importBackup(uri)
+            vm.prepareImport(uri)
         }
     }
 
@@ -68,7 +74,7 @@ fun SettingsScreen(
                     snackbarHostState.showSnackbar(event.text)
                 }
                 SettingsEvent.ImportFinished -> {
-                    showRestartDialog = true
+                    restartApp(context)
                 }
             }
         }
@@ -87,7 +93,7 @@ fun SettingsScreen(
             Text("Backup & Restore", style = MaterialTheme.typography.titleLarge)
 
             Text(
-                "Export saves your current app database as a backup ZIP file.",
+                "Export saves your database and workout images in one ZIP backup.",
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -96,68 +102,88 @@ fun SettingsScreen(
                 enabled = !isBusy,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Export database")
+                Text("Export backup")
             }
 
             Text(
-                "Import replaces your current app data with a backup.",
+                "Import replaces your current data and workout images with a selected backup.",
                 style = MaterialTheme.typography.bodyMedium
             )
 
             OutlinedButton(
-                onClick = { showImportWarning = true },
+                onClick = { importLauncher.launch(arrayOf("*/*")) },
                 enabled = !isBusy,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Import database")
+                Text("Import backup")
             }
 
-            Text(
-                "Important: importing will overwrite your current database and restart the app.",
-                style = MaterialTheme.typography.bodySmall
-            )
-
             if (isBusy) {
-                CircularProgressIndicator()
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    CircularProgressIndicator()
+                    Text("Working...")
+                }
             }
         }
     }
 
-    if (showImportWarning) {
+    importPreview?.let { preview ->
         AlertDialog(
-            onDismissRequest = { showImportWarning = false },
-            title = { Text("Import backup?") },
+            onDismissRequest = { vm.cancelImportPreview() },
+            title = { Text("Import this backup?") },
             text = {
-                Text("This will replace your current data with the selected backup file.")
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("This will replace your current database.")
+                    Text("Workout images in backup: ${preview.imageCount}")
+
+                    if (preview.previewImagePaths.isNotEmpty()) {
+                        Text(
+                            "Image preview",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(preview.previewImagePaths) { path ->
+                                AsyncImage(
+                                    model = File(path),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .size(84.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                        }
+
+                        if (preview.imageCount > preview.previewImagePaths.size) {
+                            Text(
+                                "Showing first ${preview.previewImagePaths.size} images.",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    } else {
+                        Text(
+                            "This backup contains no workout images.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        showImportWarning = false
-                        importLauncher.launch(arrayOf("*/*"))
-                    }
+                    enabled = !isBusy,
+                    onClick = { vm.confirmImport() }
                 ) {
-                    Text("Continue")
+                    Text("Import")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showImportWarning = false }) {
+                TextButton(
+                    enabled = !isBusy,
+                    onClick = { vm.cancelImportPreview() }
+                ) {
                     Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (showRestartDialog) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Import complete") },
-            text = {
-                Text("The backup was imported. The app needs to restart now.")
-            },
-            confirmButton = {
-                TextButton(onClick = { restartApp(context) }) {
-                    Text("Restart")
                 }
             }
         )

@@ -3,6 +3,7 @@ package com.erdevelopments.powerpath.ui.screens
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.erdevelopments.powerpath.data.backup.BackupPreview
 import com.erdevelopments.powerpath.data.backup.DatabaseBackupManager
 import com.erdevelopments.powerpath.data.prefs.PrefsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,7 +16,7 @@ import javax.inject.Inject
 
 sealed interface SettingsEvent {
     data class Message(val text: String) : SettingsEvent
-    object ImportFinished : SettingsEvent
+    data object ImportFinished : SettingsEvent
 }
 
 @HiltViewModel
@@ -29,6 +30,11 @@ class SettingsViewModel @Inject constructor(
 
     private val _events = MutableSharedFlow<SettingsEvent>()
     val events = _events.asSharedFlow()
+
+    private val _importPreview = MutableStateFlow<BackupPreview?>(null)
+    val importPreview = _importPreview.asStateFlow()
+
+    private var pendingImportUri: Uri? = null
 
     fun exportBackup(uri: Uri) {
         if (_isBusy.value) return
@@ -50,13 +56,46 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun importBackup(uri: Uri) {
+    fun prepareImport(uri: Uri) {
+        if (_isBusy.value) return
+
+        viewModelScope.launch {
+            _isBusy.value = true
+            val result = backupManager.previewImport(uri)
+            _isBusy.value = false
+
+            if (result.isSuccess) {
+                pendingImportUri = uri
+                _importPreview.value = result.getOrNull()
+            } else {
+                pendingImportUri = null
+                _importPreview.value = null
+                _events.emit(
+                    SettingsEvent.Message(
+                        result.exceptionOrNull()?.message ?: "Could not read backup."
+                    )
+                )
+            }
+        }
+    }
+
+    fun cancelImportPreview() {
+        pendingImportUri = null
+        _importPreview.value = null
+        backupManager.clearPreviewCache()
+    }
+
+    fun confirmImport() {
+        val uri = pendingImportUri ?: return
         if (_isBusy.value) return
 
         viewModelScope.launch {
             _isBusy.value = true
             val result = backupManager.importFrom(uri)
             _isBusy.value = false
+
+            pendingImportUri = null
+            _importPreview.value = null
 
             if (result.isSuccess) {
                 prefs.clearSelections()
@@ -69,5 +108,10 @@ class SettingsViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    override fun onCleared() {
+        backupManager.clearPreviewCache()
+        super.onCleared()
     }
 }
