@@ -3,7 +3,6 @@ package com.erdevelopments.powerpath.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -11,12 +10,18 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.erdevelopments.powerpath.data.local.model.PlanWorkoutItem
+import com.erdevelopments.powerpath.ui.components.MAX_REPS
+import com.erdevelopments.powerpath.ui.components.MAX_SETS
+import com.erdevelopments.powerpath.ui.components.MAX_WEIGHT_KG
 import com.erdevelopments.powerpath.ui.components.PowerPathFab
+import com.erdevelopments.powerpath.ui.components.FloatValueSlider
+import com.erdevelopments.powerpath.ui.components.IntValueSlider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,9 +105,9 @@ private fun AddWorkoutToPlanDialog(
     onAdd: (workoutId: Long, weightKg: Float, sets: Int, reps: Int, restSeconds: Int) -> Unit
 ) {
     var selectedId by remember { mutableStateOf(workouts.first().first) }
-    var weight by remember { mutableStateOf("10") }
-    var sets by remember { mutableStateOf("3") }
-    var reps by remember { mutableStateOf("10") }
+    var weight by remember { mutableFloatStateOf(10f) }
+    var sets by remember { mutableIntStateOf(3) }
+    var reps by remember { mutableIntStateOf(10) }
     var rest by remember { mutableStateOf("60") }
 
     AlertDialog(
@@ -110,9 +115,9 @@ private fun AddWorkoutToPlanDialog(
         title = { Text("Add workout to plan") },
         confirmButton = {
             TextButton(
-                enabled = weight.toFloatOrNull() != null && sets.toIntOrNull() != null && reps.toIntOrNull() != null && rest.toIntOrNull() != null,
+                enabled = rest.toIntOrNull() != null,
                 onClick = {
-                    onAdd(selectedId, weight.toFloat(), sets.toInt(), reps.toInt(), rest.toInt())
+                    onAdd(selectedId, weight, sets, reps, rest.toInt())
                 }
             ) { Text("Add") }
         },
@@ -139,15 +144,33 @@ private fun AddWorkoutToPlanDialog(
                     }
                 }
 
-                OutlinedTextField(weight, { weight = it }, label = { Text("Weight (kg)") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                FloatValueSlider(
+                    label = "Weight",
+                    value = weight,
+                    onValueChange = { weight = it },
+                    valueRange = 0f..MAX_WEIGHT_KG,
+                    stepSize = 0.5f,
+                    valueSuffix = "kg"
                 )
-                OutlinedTextField(sets, { sets = it }, label = { Text("Sets") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(reps, { reps = it }, label = { Text("Reps") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(rest, { rest = it }, label = { Text("Rest (seconds)") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                IntValueSlider(
+                    label = "Sets",
+                    value = sets,
+                    onValueChange = { sets = it },
+                    valueRange = 1..MAX_SETS
+                )
+                IntValueSlider(
+                    label = "Reps",
+                    value = reps,
+                    onValueChange = { reps = it },
+                    valueRange = 1..MAX_REPS
+                )
+                OutlinedTextField(
+                    value = rest,
+                    onValueChange = { rest = it },
+                    label = { Text("Rest (seconds)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
             }
         }
     )
@@ -159,9 +182,9 @@ private fun EditPlanWorkoutDialog(
     onDismiss: () -> Unit,
     onSave: (weightKg: Float, sets: Int, reps: Int, restSeconds: Int) -> Unit
 ) {
-    var weight by remember { mutableStateOf(item.weightKg.toString()) }
-    var sets by remember { mutableStateOf(item.sets.toString()) }
-    var reps by remember { mutableStateOf(item.reps.toString()) }
+    var weight by remember { mutableFloatStateOf(item.weightKg.coerceIn(0f, MAX_WEIGHT_KG)) }
+    var sets by remember { mutableIntStateOf(item.sets.coerceIn(1, MAX_SETS)) }
+    var reps by remember { mutableIntStateOf(item.reps.coerceIn(1, MAX_REPS)) }
     var rest by remember { mutableStateOf(item.restSeconds.toString()) }
 
     AlertDialog(
@@ -169,21 +192,40 @@ private fun EditPlanWorkoutDialog(
         title = { Text("Edit ${item.workoutName}") },
         confirmButton = {
             TextButton(
-                enabled = weight.toFloatOrNull() != null && sets.toIntOrNull() != null && reps.toIntOrNull() != null && rest.toIntOrNull() != null,
-                onClick = { onSave(weight.toFloat(), sets.toInt(), reps.toInt(), rest.toInt()) }
+                enabled = rest.toIntOrNull() != null,
+                onClick = { onSave(weight, sets, reps, rest.toInt()) }
             ) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(weight, { weight = it }, label = { Text("Weight (kg)") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                OutlinedTextField(sets, { sets = it }, label = { Text("Sets") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(reps, { reps = it }, label = { Text("Reps") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                OutlinedTextField(rest, { rest = it }, label = { Text("Rest (seconds)") }, singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                FloatValueSlider(
+                    label = "Weight",
+                    value = weight,
+                    onValueChange = { weight = it },
+                    valueRange = 0f..MAX_WEIGHT_KG,
+                    stepSize = 0.5f,
+                    valueSuffix = "kg"
+                )
+                IntValueSlider(
+                    label = "Sets",
+                    value = sets,
+                    onValueChange = { sets = it },
+                    valueRange = 1..MAX_SETS
+                )
+                IntValueSlider(
+                    label = "Reps",
+                    value = reps,
+                    onValueChange = { reps = it },
+                    valueRange = 1..MAX_REPS
+                )
+                OutlinedTextField(
+                    value = rest,
+                    onValueChange = { rest = it },
+                    label = { Text("Rest (seconds)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
             }
         }
     )

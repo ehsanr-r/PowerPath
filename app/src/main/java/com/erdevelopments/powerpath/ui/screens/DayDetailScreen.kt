@@ -3,6 +3,8 @@
 package com.erdevelopments.powerpath.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +44,11 @@ import com.erdevelopments.powerpath.data.local.PlanEntity
 import com.erdevelopments.powerpath.data.local.model.DayPlanItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutSetItem
+import com.erdevelopments.powerpath.ui.components.FloatValueSlider
+import com.erdevelopments.powerpath.ui.components.IntValueSlider
+import com.erdevelopments.powerpath.ui.components.MAX_REPS
+import com.erdevelopments.powerpath.ui.components.MAX_SETS
+import com.erdevelopments.powerpath.ui.components.MAX_WEIGHT_KG
 
 @Composable
 fun DayDetailScreen(
@@ -274,47 +281,48 @@ private fun SetRow(
     onCheckedChange: (Boolean) -> Unit,
     onValueChange: (Float, Int) -> Unit
 ) {
-    var weight by remember(setItem.weightKg) { mutableStateOf(setItem.weightKg.toString()) }
-    var reps by remember(setItem.reps) { mutableStateOf(setItem.reps.toString()) }
+    var weight by remember(setItem.weightKg) {
+        mutableFloatStateOf(setItem.weightKg.coerceIn(0f, MAX_WEIGHT_KG))
+    }
+    var reps by remember(setItem.reps) { mutableIntStateOf(setItem.reps.coerceIn(1, MAX_REPS)) }
 
     Card(Modifier.fillMaxWidth()) {
-        Row(
+        Column(
             Modifier.fillMaxWidth().padding(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Checkbox(
-                checked = setItem.isDone,
-                onCheckedChange = onCheckedChange
-            )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Checkbox(
+                    checked = setItem.isDone,
+                    onCheckedChange = onCheckedChange
+                )
 
-            Text("Set ${setItem.setNumber}", modifier = Modifier.padding(top = 14.dp))
+                Text("Set ${setItem.setNumber}", modifier = Modifier.padding(top = 14.dp))
+            }
 
-            OutlinedTextField(
+            FloatValueSlider(
+                label = "Weight",
                 value = weight,
                 onValueChange = {
                     weight = it
-                    val w = it.toFloatOrNull()
-                    val r = reps.toIntOrNull()
-                    if (w != null && r != null) onValueChange(w, r)
+                    onValueChange(weight, reps)
                 },
-                label = { Text("Weight") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                valueRange = 0f..MAX_WEIGHT_KG,
+                stepSize = 0.5f,
+                valueSuffix = "kg"
             )
 
-            OutlinedTextField(
+            IntValueSlider(
+                label = "Reps",
                 value = reps,
                 onValueChange = {
                     reps = it
-                    val w = weight.toFloatOrNull()
-                    val r = it.toIntOrNull()
-                    if (w != null && r != null) onValueChange(w, r)
+                    onValueChange(weight, reps)
                 },
-                label = { Text("Reps") },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                valueRange = 1..MAX_REPS
             )
         }
     }
@@ -389,15 +397,12 @@ private fun EditDayWorkoutDialog(
     onSave: (Float?, Int?, Int?, Int?) -> Unit,
     onReset: () -> Unit
 ) {
-    var weight by remember {
-        mutableStateOf((item.overrideWeightKg ?: item.templateWeightKg).toString())
-    }
-    var sets by remember {
-        mutableStateOf((item.overrideSets ?: item.templateSets).toString())
-    }
-    var reps by remember {
-        mutableStateOf((item.overrideReps ?: item.templateReps).toString())
-    }
+    val initialWeight = (item.overrideWeightKg ?: item.templateWeightKg).coerceIn(0f, MAX_WEIGHT_KG)
+    val initialSets = (item.overrideSets ?: item.templateSets).coerceIn(1, MAX_SETS)
+    val initialReps = (item.overrideReps ?: item.templateReps).coerceIn(1, MAX_REPS)
+    var weight by remember { mutableFloatStateOf(initialWeight) }
+    var sets by remember { mutableIntStateOf(initialSets) }
+    var reps by remember { mutableIntStateOf(initialReps) }
     var rest by remember {
         mutableStateOf((item.overrideRestSeconds ?: item.templateRestSeconds).toString())
     }
@@ -407,15 +412,12 @@ private fun EditDayWorkoutDialog(
         title = { Text("Edit: ${item.workoutName}") },
         confirmButton = {
             TextButton(
-                enabled = weight.toFloatOrNull() != null &&
-                        sets.toIntOrNull() != null &&
-                        reps.toIntOrNull() != null &&
-                        rest.toIntOrNull() != null,
+                enabled = rest.toIntOrNull() != null,
                 onClick = {
                     onSave(
-                        weight.toFloat(),
-                        sets.toInt(),
-                        reps.toInt(),
+                        weight,
+                        sets,
+                        reps,
                         rest.toInt()
                     )
                 }
@@ -425,33 +427,15 @@ private fun EditDayWorkoutDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 Text(
                     "Plan defaults: ${item.templateWeightKg}kg • ${item.templateSets}x${item.templateReps} • Rest ${item.templateRestSeconds}s",
                     style = MaterialTheme.typography.bodySmall
                 )
 
-                OutlinedTextField(
-                    value = weight,
-                    onValueChange = { weight = it },
-                    label = { Text("Weight (kg)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                )
-                OutlinedTextField(
-                    value = sets,
-                    onValueChange = { sets = it },
-                    label = { Text("Sets") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-                OutlinedTextField(
-                    value = reps,
-                    onValueChange = { reps = it },
-                    label = { Text("Reps") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
                 OutlinedTextField(
                     value = rest,
                     onValueChange = { rest = it },
@@ -460,6 +444,26 @@ private fun EditDayWorkoutDialog(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
 
+                FloatValueSlider(
+                    label = "Weight",
+                    value = weight,
+                    onValueChange = { weight = it },
+                    valueRange = 0f..MAX_WEIGHT_KG,
+                    stepSize = 0.5f,
+                    valueSuffix = "kg"
+                )
+                IntValueSlider(
+                    label = "Sets",
+                    value = sets,
+                    onValueChange = { sets = it },
+                    valueRange = 1..MAX_SETS
+                )
+                IntValueSlider(
+                    label = "Reps",
+                    value = reps,
+                    onValueChange = { reps = it },
+                    valueRange = 1..MAX_REPS
+                )
                 OutlinedButton(onClick = onReset) {
                     Text("Reset to plan defaults")
                 }
