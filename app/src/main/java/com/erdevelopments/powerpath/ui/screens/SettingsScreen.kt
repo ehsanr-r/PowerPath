@@ -39,6 +39,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.system.exitProcess
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,7 +101,7 @@ fun SettingsScreen(
             )
 
             Button(
-                onClick = { exportLauncher.launch("powerpath-backup.zip") },
+                onClick = { exportLauncher.launch(defaultBackupFileName()) },
                 enabled = !isBusy,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -200,4 +203,9 @@ private fun restartApp(context: Context) {
 
     context.startActivity(intent)
     exitProcess(0)
+}
+
+private fun defaultBackupFileName(): String {
+    val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+    return "powerpath-backup-$timestamp.zip"
 }
