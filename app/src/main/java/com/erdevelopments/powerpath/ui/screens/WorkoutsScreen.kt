@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -139,6 +140,7 @@ private fun WorkoutListItem(
     onImageClick: (String) -> Unit
 ) {
     var descriptionExpanded by remember(workout.id) { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Card(Modifier.fillMaxWidth()) {
         Row(
@@ -156,7 +158,13 @@ private fun WorkoutListItem(
             Spacer(Modifier.size(12.dp))
 
             Column(Modifier.weight(1f)) {
-                Text(workout.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = workout.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.clickable {
+                        openYoutubeSearch(context, workout.name)
+                    }
+                )
                 Text(workout.bodyPart)
 
                 workout.description?.takeIf { it.isNotBlank() }?.let { desc ->

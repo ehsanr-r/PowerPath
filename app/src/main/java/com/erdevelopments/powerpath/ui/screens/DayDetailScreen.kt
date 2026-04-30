@@ -52,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -225,6 +226,7 @@ private fun WorkoutWithSetsCard(
     val sets by vm.observeWorkoutSets(item.dayPlanId, item.workoutId).collectAsStateWithLifecycle()
     var editTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
     var setsExpanded by remember(item.dayPlanId, item.workoutId) { mutableStateOf(true) }
+    val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val containerColor = if (item.isDone) {
         colorScheme.secondaryContainer
@@ -293,7 +295,10 @@ private fun WorkoutWithSetsCard(
                         Text(
                             text = item.workoutName,
                             style = MaterialTheme.typography.titleMedium,
-                            color = headerTextColor
+                            color = headerTextColor,
+                            modifier = Modifier.clickable {
+                                openYoutubeSearch(context, item.workoutName)
+                            }
                         )
                         Text(
                             text = item.bodyPart.uppercase(),
@@ -316,12 +321,6 @@ private fun WorkoutWithSetsCard(
                 }
             }
 
-            Text(
-                text = "SETS",
-                style = MaterialTheme.typography.labelMedium,
-                color = borderColor
-            )
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -334,14 +333,16 @@ private fun WorkoutWithSetsCard(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "${sets.size} set${if (sets.size == 1) "" else "s"}",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    TextButton(onClick = { setsExpanded = !setsExpanded }) {
+                    TextButton(
+                        onClick = { setsExpanded = !setsExpanded },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 8.dp,
+                            vertical = 2.dp
+                        )
+                    ) {
                         Text(if (setsExpanded) "Hide sets" else "Show sets")
                     }
                 }
