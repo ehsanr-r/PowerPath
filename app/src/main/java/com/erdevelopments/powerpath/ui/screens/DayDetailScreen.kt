@@ -224,31 +224,49 @@ private fun WorkoutWithSetsCard(
 ) {
     val sets by vm.observeWorkoutSets(item.dayPlanId, item.workoutId).collectAsStateWithLifecycle()
     var editTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
+    var setsExpanded by remember(item.dayPlanId, item.workoutId) { mutableStateOf(true) }
     val colorScheme = MaterialTheme.colorScheme
     val containerColor = if (item.isDone) {
         colorScheme.secondaryContainer
     } else {
-        colorScheme.surfaceVariant.copy(alpha = 0.55f)
+        colorScheme.surface
     }
     val borderColor = if (item.isDone) {
         colorScheme.secondary
     } else {
-        colorScheme.outlineVariant
+        colorScheme.primary
+    }
+    val headerColor = if (item.isDone) {
+        colorScheme.secondaryContainer.copy(alpha = 0.95f)
+    } else {
+        colorScheme.primaryContainer.copy(alpha = 0.9f)
+    }
+    val headerTextColor = if (item.isDone) {
+        colorScheme.onSecondaryContainer
+    } else {
+        colorScheme.onPrimaryContainer
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        border = BorderStroke(1.dp, borderColor)
+        border = BorderStroke(2.dp, borderColor)
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = headerColor,
+                        shape = RoundedCornerShape(18.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
             ) {
                 Row(
                     modifier = Modifier.weight(1f),
@@ -257,8 +275,8 @@ private fun WorkoutWithSetsCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .padding(top = 10.dp)
-                            .size(10.dp)
+                            .padding(top = 8.dp)
+                            .size(12.dp)
                             .clip(CircleShape)
                             .background(borderColor)
                     )
@@ -269,55 +287,89 @@ private fun WorkoutWithSetsCard(
                         }
                     )
                     Column(
-                        modifier = Modifier.padding(top = 6.dp),
+                        modifier = Modifier.padding(top = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
                             text = item.workoutName,
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            color = headerTextColor
                         )
                         Text(
                             text = item.bodyPart.uppercase(),
                             style = MaterialTheme.typography.labelMedium,
-                            color = colorScheme.primary
+                            color = headerTextColor.copy(alpha = 0.9f)
                         )
                         Text(
                             text = "${formatWeight(item.effectiveWeightKg)}kg • ${item.effectiveSets} sets • ${item.effectiveReps} reps • Rest ${item.effectiveRestSeconds}s",
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
+                            color = headerTextColor.copy(alpha = 0.85f)
                         )
                     }
                 }
 
                 TextButton(onClick = { editTarget = item }) {
-                    Text("Edit")
+                    Text(
+                        text = "Edit",
+                        color = headerTextColor
+                    )
                 }
             }
 
-            HorizontalDivider(color = colorScheme.outlineVariant.copy(alpha = 0.6f))
+            Text(
+                text = "SETS",
+                style = MaterialTheme.typography.labelMedium,
+                color = borderColor
+            )
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                sets.forEach { setItem ->
-                    SetRow(
-                        setItem = setItem,
-                        onCheckedChange = { checked ->
-                            vm.toggleSet(
-                                item = item,
-                                setNumber = setItem.setNumber,
-                                weightKg = setItem.weightKg,
-                                reps = setItem.reps,
-                                done = checked
-                            )
-                        },
-                        onValueChange = { weight, reps ->
-                            vm.updateSet(
-                                item = item,
-                                setNumber = setItem.setNumber,
-                                weightKg = weight,
-                                reps = reps,
-                                done = setItem.isDone
-                            )
-                        }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = colorScheme.surfaceVariant.copy(alpha = 0.28f),
+                        shape = RoundedCornerShape(18.dp)
                     )
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${sets.size} set${if (sets.size == 1) "" else "s"}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    TextButton(onClick = { setsExpanded = !setsExpanded }) {
+                        Text(if (setsExpanded) "Hide sets" else "Show sets")
+                    }
+                }
+
+                if (setsExpanded) {
+                    sets.forEach { setItem ->
+                        SetRow(
+                            setItem = setItem,
+                            onCheckedChange = { checked ->
+                                vm.toggleSet(
+                                    item = item,
+                                    setNumber = setItem.setNumber,
+                                    weightKg = setItem.weightKg,
+                                    reps = setItem.reps,
+                                    done = checked
+                                )
+                            },
+                            onValueChange = { weight, reps ->
+                                vm.updateSet(
+                                    item = item,
+                                    setNumber = setItem.setNumber,
+                                    weightKg = weight,
+                                    reps = reps,
+                                    done = setItem.isDone
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
