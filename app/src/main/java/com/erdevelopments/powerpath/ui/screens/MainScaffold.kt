@@ -1,6 +1,7 @@
 package com.erdevelopments.powerpath.ui.screens
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -89,7 +90,11 @@ fun MainScaffold(navController: NavHostController) {
                 }
             }
         ) { padding ->
-            Box(Modifier.padding(padding)) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
                 when (currentTab) {
                     "days" -> DaysScreen(onOpenDay = { dayId -> navController.navigate(Routes.dayDetail(dayId)) })
                     "plans" -> PlansScreen(onOpenPlan = { planId -> navController.navigate(Routes.planDetail(planId)) })

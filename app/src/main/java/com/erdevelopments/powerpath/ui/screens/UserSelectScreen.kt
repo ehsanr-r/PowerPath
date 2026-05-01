@@ -31,7 +31,12 @@ fun UserSelectScreen(
             }
         }
     ) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
             Text("Select a user", style = MaterialTheme.typography.titleLarge)
 
             Spacer(Modifier.height(12.dp))
@@ -39,7 +44,13 @@ fun UserSelectScreen(
             if (users.isEmpty()) {
                 Text("No users yet. Tap + to add one.")
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     items(users) { u ->
                         Card(
                             Modifier.fillMaxWidth().clickable {

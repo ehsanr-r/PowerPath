@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,7 +38,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -62,21 +62,25 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
     var editTarget by remember { mutableStateOf<WorkoutEntity?>(null) }
     var fullscreenImagePath by remember { mutableStateOf<String?>(null) }
 
-    Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAdd = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Add workout")
-            }
-        }
-    ) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp)) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
             Text("Workouts", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(12.dp))
 
             if (workouts.isEmpty()) {
                 Text("No workouts defined. Tap + to add.")
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     items(
                         items = workouts,
                         key = { "workout_${it.id}" }
@@ -90,6 +94,15 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
                     }
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = { showAdd = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add workout")
         }
     }
 

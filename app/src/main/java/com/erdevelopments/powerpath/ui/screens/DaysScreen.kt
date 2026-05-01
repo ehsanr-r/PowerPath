@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -26,14 +27,12 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
 
     var renameTarget by remember { mutableStateOf<DayEntity?>(null) }
 
-    Scaffold(
-        floatingActionButton = {
-            PowerPathFab(
-                onClick = { if (userId != null) vm.addDay() }, enabled = userId != null
-            ) { Icon(Icons.Default.Add, contentDescription = "Add day") }
-        }
-    ) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp)) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
             Text("Days", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(10.dp))
 
@@ -45,11 +44,17 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
             if (days.isEmpty()) {
                 Text("No days yet. Tap + to add your first day.")
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     items(days) { day ->
                         Card(
                             modifier = Modifier.fillMaxWidth().clickable {
-                                vm.selectDay(day.id) // optional
+                                vm.selectDay(day.id)
                                 onOpenDay(day.id)
                             }
                         ) {
@@ -81,6 +86,16 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
                     }
                 }
             }
+        }
+
+        PowerPathFab(
+            enabled = userId != null,
+            onClick = { if (userId != null) vm.addDay() },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add day")
         }
     }
 

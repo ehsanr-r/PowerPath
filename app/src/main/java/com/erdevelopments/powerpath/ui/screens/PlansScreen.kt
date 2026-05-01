@@ -2,9 +2,12 @@ package com.erdevelopments.powerpath.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -19,9 +22,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -41,17 +44,12 @@ fun PlansScreen(
 
     var renameTarget by remember { mutableStateOf<PlanEntity?>(null) }
 
-    Scaffold(
-        floatingActionButton = {
-            PowerPathFab(
-                enabled = (userId != null) && hasWorkouts,
-                onClick = { vm.addPlan() }
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add plan")
-            }
-        }
-    ) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp)) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
             Text("Plans", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(10.dp))
 
@@ -68,7 +66,13 @@ fun PlansScreen(
             if (plans.isEmpty()) {
                 Text("No plans yet. Tap + to add one.")
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     items(plans, key = { it.id }) { plan ->
                         Card(
                             modifier = Modifier.fillMaxWidth().clickable { onOpenPlan(plan.id) }
@@ -95,6 +99,16 @@ fun PlansScreen(
                     }
                 }
             }
+        }
+
+        PowerPathFab(
+            enabled = (userId != null) && hasWorkouts,
+            onClick = { vm.addPlan() },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add plan")
         }
     }
 
