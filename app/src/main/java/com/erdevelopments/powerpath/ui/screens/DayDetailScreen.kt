@@ -63,6 +63,7 @@ import com.erdevelopments.powerpath.data.local.PlanEntity
 import com.erdevelopments.powerpath.data.local.model.DayPlanItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutSetItem
+import com.erdevelopments.powerpath.data.local.model.WorkoutHistorySetItem
 import com.erdevelopments.powerpath.ui.components.FloatValueSlider
 import com.erdevelopments.powerpath.ui.components.IntValueSlider
 import com.erdevelopments.powerpath.ui.components.MAX_REPS
@@ -238,6 +239,7 @@ private fun WorkoutWithSetsCard(
 ) {
     val sets by vm.observeWorkoutSets(item.dayPlanId, item.workoutId).collectAsStateWithLifecycle()
     var editTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
+    var historyTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
     var setsExpanded by remember(item.dayPlanId, item.workoutId) { mutableStateOf(true) }
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -326,11 +328,19 @@ private fun WorkoutWithSetsCard(
                     }
                 }
 
-                TextButton(onClick = { editTarget = item }) {
-                    Text(
-                        text = "Edit",
-                        color = headerTextColor
-                    )
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(onClick = { editTarget = item }) {
+                        Text(
+                            text = "Edit",
+                            color = headerTextColor
+                        )
+                    }
+                    TextButton(onClick = { historyTarget = item }) {
+                        Text(
+                            text = "History",
+                            color = headerTextColor
+                        )
+                    }
                 }
             }
 
@@ -401,6 +411,13 @@ private fun WorkoutWithSetsCard(
                 vm.resetToTemplate(it)
                 editTarget = null
             }
+        )
+    }
+
+    historyTarget?.let {
+        WorkoutHistoryDialog(
+            item = it,
+            onDismiss = { historyTarget = null }
         )
     }
 }
@@ -630,6 +647,73 @@ private fun EditDayWorkoutDialog(
             }
         }
     )
+}
+
+@Composable
+private fun WorkoutHistoryDialog(
+    item: DayPlanWorkoutItem,
+    onDismiss: () -> Unit,
+    vm: DayDetailViewModel = hiltViewModel()
+) {
+    val history by vm.observeWorkoutHistory(item.dayPlanId, item.workoutId)
+        .collectAsStateWithLifecycle()
+    val totalVolume = history.fold(0f) { acc, set -> acc + (set.weightKg * set.reps) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("History: ${item.workoutName}") },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (history.isEmpty()) {
+                    Text("No previous completed session found for this workout in this plan.")
+                } else {
+                    val latest = history.first()
+
+                    Text(
+                        text = "Last session: ${latest.dayName}",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    Text(
+                        text = "${history.size} completed sets • Volume ${formatWeight(totalVolume)}kg",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    history.forEach { set ->
+                        HistorySetRow(set)
+                    }
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun HistorySetRow(set: WorkoutHistorySetItem) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Set ${set.setNumber}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "${formatWeight(set.weightKg)}kg • ${set.reps} reps",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }
 
 private fun formatWeight(value: Float): String {

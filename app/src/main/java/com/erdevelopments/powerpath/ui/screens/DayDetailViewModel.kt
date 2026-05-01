@@ -15,6 +15,7 @@ import com.erdevelopments.powerpath.data.local.model.DayPlanItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanProgress
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutSetItem
+import com.erdevelopments.powerpath.data.local.model.WorkoutHistorySetItem
 import com.erdevelopments.powerpath.data.prefs.PrefsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -39,6 +40,7 @@ class DayDetailViewModel @Inject constructor(
     private val progressFlows = mutableMapOf<Long, StateFlow<DayPlanProgress?>>()
     private val workoutFlows = mutableMapOf<Long, StateFlow<List<DayPlanWorkoutItem>>>()
     private val setFlows = mutableMapOf<String, StateFlow<List<DayPlanWorkoutSetItem>>>()
+    private val historyFlows = mutableMapOf<String, StateFlow<List<WorkoutHistorySetItem>>>()
 
     fun observeDayName(dayId: Long): StateFlow<String> {
         return dayNameFlows.getOrPut(dayId) {
@@ -77,6 +79,14 @@ class DayDetailViewModel @Inject constructor(
         val key = "$dayPlanId-$workoutId"
         return setFlows.getOrPut(key) {
             dayPlanWorkoutSetDao.observeSets(dayPlanId, workoutId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        }
+    }
+
+    fun observeWorkoutHistory(dayPlanId: Long, workoutId: Long): StateFlow<List<WorkoutHistorySetItem>> {
+        val key = "$dayPlanId-$workoutId"
+        return historyFlows.getOrPut(key) {
+            dayPlanWorkoutSetDao.observePreviousCompletedSession(dayPlanId, workoutId)
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
         }
     }
