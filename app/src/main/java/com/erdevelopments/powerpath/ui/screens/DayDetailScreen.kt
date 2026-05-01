@@ -238,6 +238,9 @@ private fun WorkoutWithSetsCard(
     vm: DayDetailViewModel = hiltViewModel()
 ) {
     val sets by vm.observeWorkoutSets(item.dayPlanId, item.workoutId).collectAsStateWithLifecycle()
+    val liftedTotalKg = sets
+        .filter { it.isDone }
+        .fold(0f) { acc, set -> acc + (set.weightKg * set.reps) }
     var editTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
     var historyTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
     var setsExpanded by remember(item.dayPlanId, item.workoutId) { mutableStateOf(true) }
@@ -356,9 +359,14 @@ private fun WorkoutWithSetsCard(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(
+                        text = "Total: ${formatWeight(liftedTotalKg)}kg",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     TextButton(
                         onClick = { setsExpanded = !setsExpanded },
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(
