@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.erdevelopments.powerpath.data.local.DayEntity
+import com.erdevelopments.powerpath.ui.components.ConfirmationDialog
 import com.erdevelopments.powerpath.ui.components.PowerPathFab
 
 @Composable
@@ -25,6 +26,7 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
     val selectedDayId by vm.selectedDayId.collectAsStateWithLifecycle()
     val days by vm.days.collectAsStateWithLifecycle()
 
+    var deleteTarget by remember { mutableStateOf<DayEntity?>(null) }
     var renameTarget by remember { mutableStateOf<DayEntity?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -77,7 +79,7 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
                                     IconButton(onClick = { renameTarget = day }) {
                                         Icon(Icons.Default.Edit, contentDescription = "Rename")
                                     }
-                                    IconButton(onClick = { vm.deleteDay(day) }) {
+                                    IconButton(onClick = { deleteTarget = day }) {
                                         Icon(Icons.Default.Delete, contentDescription = "Delete")
                                     }
                                 }
@@ -105,6 +107,18 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
             initial = day.name,
             onDismiss = { renameTarget = null },
             onSave = { vm.renameDay(day.id, it); renameTarget = null }
+        )
+    }
+
+    deleteTarget?.let { day ->
+        ConfirmationDialog(
+            title = "Delete day?",
+            message = "This will permanently delete ${day.name} and its assigned plans.",
+            onConfirm = {
+                vm.deleteDay(day)
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null }
         )
     }
 }

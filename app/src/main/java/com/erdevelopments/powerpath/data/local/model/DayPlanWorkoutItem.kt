@@ -6,6 +6,7 @@ data class DayPlanWorkoutItem(
     val workoutId: Long,
     val workoutName: String,
     val bodyPart: String,
+    val imageUri: String?,
 
     val templateWeightKg: Float,
     val templateSets: Int,

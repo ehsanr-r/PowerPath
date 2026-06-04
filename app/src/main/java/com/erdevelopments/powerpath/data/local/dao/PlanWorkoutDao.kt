@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.erdevelopments.powerpath.data.local.PlanWorkoutEntity
 import com.erdevelopments.powerpath.data.local.model.DayVolume
 import com.erdevelopments.powerpath.data.local.model.PlanWorkoutItem
@@ -43,6 +44,31 @@ interface PlanWorkoutDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: PlanWorkoutEntity)
 
+    @Query(
+        """
+        INSERT INTO plan_workouts (
+            planId,
+            workoutId,
+            weightKg,
+            sets,
+            reps,
+            restSeconds,
+            orderIndex
+        )
+        SELECT
+            :targetPlanId,
+            workoutId,
+            weightKg,
+            sets,
+            reps,
+            restSeconds,
+            orderIndex
+        FROM plan_workouts
+        WHERE planId = :sourcePlanId
+        """
+    )
+    suspend fun copyPlanWorkouts(sourcePlanId: Long, targetPlanId: Long)
+
     // Update just the adjustable fields
     @Query(
         """
@@ -62,6 +88,22 @@ interface PlanWorkoutDao {
         reps: Int,
         restSeconds: Int
     )
+
+    @Query(
+        """
+        UPDATE plan_workouts
+        SET orderIndex = :orderIndex
+        WHERE planId = :planId AND workoutId = :workoutId
+        """
+    )
+    suspend fun updateOrderIndex(planId: Long, workoutId: Long, orderIndex: Int)
+
+    @Transaction
+    suspend fun reorderWorkouts(planId: Long, orderedWorkoutIds: List<Long>) {
+        orderedWorkoutIds.forEachIndexed { index, workoutId ->
+            updateOrderIndex(planId, workoutId, index)
+        }
+    }
 
     // Remove one workout from a plan
     @Query("DELETE FROM plan_workouts WHERE planId = :planId AND workoutId = :workoutId")

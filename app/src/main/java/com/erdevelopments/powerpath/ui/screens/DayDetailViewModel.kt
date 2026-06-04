@@ -106,17 +106,29 @@ class DayDetailViewModel @Inject constructor(
         }
     }
 
-    suspend fun ensureDefaultSets(item: DayPlanWorkoutItem) {
+    suspend fun ensureDefaultSets(
+        item: DayPlanWorkoutItem,
+        preferHistory: Boolean = true
+    ) {
         val current = dayPlanWorkoutSetDao.observeSets(item.dayPlanId, item.workoutId).first()
         if (current.isNotEmpty()) return
 
+        val historyBySetNumber = if (preferHistory) {
+            dayPlanWorkoutSetDao.observePreviousCompletedSession(item.dayPlanId, item.workoutId)
+                .first()
+                .associateBy { it.setNumber }
+        } else {
+            emptyMap()
+        }
+
         val sets = (1..item.effectiveSets).map { setNo ->
+            val previousSet = historyBySetNumber[setNo]
             DayPlanWorkoutSetEntity(
                 dayPlanId = item.dayPlanId,
                 workoutId = item.workoutId,
                 setNumber = setNo,
-                weightKg = item.effectiveWeightKg,
-                reps = item.effectiveReps,
+                weightKg = previousSet?.weightKg ?: item.effectiveWeightKg,
+                reps = previousSet?.reps ?: item.effectiveReps,
                 isDone = false
             )
         }
@@ -216,7 +228,8 @@ class DayDetailViewModel @Inject constructor(
                     overrideSets = sets,
                     overrideReps = reps,
                     overrideRestSeconds = restSeconds
-                )
+                ),
+                preferHistory = false
             )
         }
     }
@@ -225,6 +238,15 @@ class DayDetailViewModel @Inject constructor(
         viewModelScope.launch {
             dayPlanWorkoutDao.delete(item.dayPlanId, item.workoutId)
             dayPlanWorkoutSetDao.deleteForWorkout(item.dayPlanId, item.workoutId)
+            ensureDefaultSets(
+                item.copy(
+                    overrideWeightKg = null,
+                    overrideSets = null,
+                    overrideReps = null,
+                    overrideRestSeconds = null
+                ),
+                preferHistory = false
+            )
         }
     }
 }

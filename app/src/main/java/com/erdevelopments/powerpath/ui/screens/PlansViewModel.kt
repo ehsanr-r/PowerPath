@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.erdevelopments.powerpath.data.local.PlanEntity
 import com.erdevelopments.powerpath.data.local.dao.PlanDao
+import com.erdevelopments.powerpath.data.local.dao.PlanWorkoutDao
 import com.erdevelopments.powerpath.data.local.dao.WorkoutDao
 import com.erdevelopments.powerpath.data.prefs.PrefsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class PlansViewModel @Inject constructor(
     private val planDao: PlanDao,
+    private val planWorkoutDao: PlanWorkoutDao,
     private val workoutDao: WorkoutDao,
     private val prefs: PrefsRepository
 ) : ViewModel() {
@@ -58,6 +60,19 @@ class PlansViewModel @Inject constructor(
 
     fun renamePlan(planId: Long, newName: String) {
         viewModelScope.launch { planDao.updateName(planId, newName.trim()) }
+    }
+
+    fun duplicatePlan(plan: PlanEntity) {
+        viewModelScope.launch {
+            val newPlanId = planDao.insert(
+                PlanEntity(
+                    userId = plan.userId,
+                    name = "${plan.name} Copy",
+                    orderIndex = planDao.nextOrderIndex(plan.userId)
+                )
+            )
+            planWorkoutDao.copyPlanWorkouts(plan.id, newPlanId)
+        }
     }
 
     fun deletePlan(plan: PlanEntity) {

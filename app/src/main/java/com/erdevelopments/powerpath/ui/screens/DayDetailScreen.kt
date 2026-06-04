@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,11 +67,14 @@ import com.erdevelopments.powerpath.data.local.model.DayPlanItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutItem
 import com.erdevelopments.powerpath.data.local.model.DayPlanWorkoutSetItem
 import com.erdevelopments.powerpath.data.local.model.WorkoutHistorySetItem
+import com.erdevelopments.powerpath.ui.components.ConfirmationDialog
 import com.erdevelopments.powerpath.ui.components.FloatValueSlider
+import com.erdevelopments.powerpath.ui.components.FullscreenImageDialog
 import com.erdevelopments.powerpath.ui.components.IntValueSlider
 import com.erdevelopments.powerpath.ui.components.MAX_REPS
 import com.erdevelopments.powerpath.ui.components.MAX_SETS
 import com.erdevelopments.powerpath.ui.components.MAX_WEIGHT_KG
+import com.erdevelopments.powerpath.ui.components.WorkoutImage
 
 @Composable
 fun DayDetailScreen(
@@ -159,6 +165,7 @@ private fun DayPlanCardContainer(
 ) {
     val progress by vm.observeDayPlanProgress(dayPlan.dayPlanId).collectAsStateWithLifecycle()
     val workouts by vm.observeWorkouts(dayPlan.dayPlanId).collectAsStateWithLifecycle()
+    var showDeleteConfirmation by remember(dayPlan.dayPlanId) { mutableStateOf(false) }
 
     DayPlanCard(
         dayPlan = dayPlan,
@@ -166,9 +173,22 @@ private fun DayPlanCardContainer(
         doneWorkouts = progress?.doneWorkouts ?: 0,
         expanded = expanded,
         onToggleExpand = onToggleExpand,
-        onRemove = onRemove,
+        onRemove = { showDeleteConfirmation = true },
         workouts = if (expanded) workouts else emptyList()
     )
+
+    if (showDeleteConfirmation) {
+        ConfirmationDialog(
+            title = "Remove plan from day?",
+            message = "This will remove ${dayPlan.planName} from this day.",
+            confirmLabel = "Remove",
+            onConfirm = {
+                onRemove()
+                showDeleteConfirmation = false
+            },
+            onDismiss = { showDeleteConfirmation = false }
+        )
+    }
 }
 
 @Composable
@@ -220,10 +240,55 @@ private fun DayPlanCard(
                 if (workouts.isEmpty()) {
                     Text("This plan has no workouts (add workouts in Plans tab).")
                 } else {
+                    val pagerState = rememberPagerState(pageCount = { workouts.size })
+
+                    LaunchedEffect(workouts) {
+                        workouts.forEach(vm::ensureSets)
+                    }
+
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        workouts.forEach { item ->
-                            vm.ensureSets(item)
-                            WorkoutWithSetsCard(item = item)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Workout ${pagerState.currentPage + 1} of ${workouts.size}",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+
+                        if (workouts.size > 1) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                repeat(workouts.size) { index ->
+                                    val isSelected = index == pagerState.currentPage
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(horizontal = 3.dp)
+                                            .size(if (isSelected) 10.dp else 8.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (isSelected) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    MaterialTheme.colorScheme.outlineVariant
+                                                }
+                                            )
+                                    )
+                                }
+                            }
+                        }
+
+                        HorizontalPager(
+                            modifier = Modifier.fillMaxWidth(),
+                            state = pagerState,
+                            pageSpacing = 12.dp,
+                            key = { page -> workouts[page].workoutId }
+                        ) { page ->
+                            WorkoutWithSetsCard(item = workouts[page])
                         }
                     }
                 }
@@ -242,6 +307,7 @@ private fun WorkoutWithSetsCard(
         .filter { it.isDone }
         .fold(0f) { acc, set -> acc + (set.weightKg * set.reps) }
     var editTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
+    var fullscreenImagePath by remember(item.dayPlanId, item.workoutId) { mutableStateOf<String?>(null) }
     var historyTarget by remember { mutableStateOf<DayPlanWorkoutItem?>(null) }
     var setsExpanded by remember(item.dayPlanId, item.workoutId) { mutableStateOf(true) }
     val context = LocalContext.current
@@ -293,23 +359,29 @@ private fun WorkoutWithSetsCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.Top
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .size(12.dp)
-                            .clip(CircleShape)
-                            .background(borderColor)
-                    )
-                    Checkbox(
-                        checked = item.isDone,
-                        onCheckedChange = { checked ->
-                            vm.toggleAllSets(item, checked)
-                        }
-                    )
                     Column(
-                        modifier = Modifier.padding(top = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
+                        WorkoutImage(
+                            imagePath = item.imageUri,
+                            modifier = Modifier.size(56.dp),
+                            onClick = { path -> fullscreenImagePath = path }
+                        )
+                        Checkbox(
+                            checked = item.isDone,
+                            onCheckedChange = { checked ->
+                                vm.toggleAllSets(item, checked)
+                            }
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(top = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    )
+                    {
                         Text(
                             text = item.workoutName,
                             style = MaterialTheme.typography.titleMedium,
@@ -407,6 +479,13 @@ private fun WorkoutWithSetsCard(
         }
     }
 
+    fullscreenImagePath?.let { path ->
+        FullscreenImageDialog(
+            imagePath = path,
+            onDismiss = { fullscreenImagePath = null }
+        )
+    }
+
     editTarget?.let {
         EditDayWorkoutDialog(
             item = it,
@@ -496,7 +575,7 @@ private fun SetRow(
                     onValueChange(weight, reps)
                 },
                 valueRange = 0f..MAX_WEIGHT_KG,
-                stepSize = 0.5f,
+                stepSize = 1f,
                 valueSuffix = "kg"
             )
 
@@ -634,7 +713,7 @@ private fun EditDayWorkoutDialog(
                     value = weight,
                     onValueChange = { weight = it },
                     valueRange = 0f..MAX_WEIGHT_KG,
-                    stepSize = 0.5f,
+                    stepSize = 1f,
                     valueSuffix = "kg"
                 )
                 IntValueSlider(

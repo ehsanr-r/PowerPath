@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Card
@@ -30,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.erdevelopments.powerpath.data.local.PlanEntity
+import com.erdevelopments.powerpath.ui.components.ConfirmationDialog
 import com.erdevelopments.powerpath.ui.components.PowerPathFab
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +44,7 @@ fun PlansScreen(
     val plans by vm.plans.collectAsStateWithLifecycle()
     val hasWorkouts by vm.hasWorkouts.collectAsStateWithLifecycle()
 
+    var deleteTarget by remember { mutableStateOf<PlanEntity?>(null) }
     var renameTarget by remember { mutableStateOf<PlanEntity?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -87,10 +90,13 @@ fun PlansScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                                 Row {
+                                    IconButton(onClick = { vm.duplicatePlan(plan) }) {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = "Duplicate")
+                                    }
                                     IconButton(onClick = { renameTarget = plan }) {
                                         Icon(Icons.Default.Edit, contentDescription = "Rename")
                                     }
-                                    IconButton(onClick = { vm.deletePlan(plan) }) {
+                                    IconButton(onClick = { deleteTarget = plan }) {
                                         Icon(Icons.Default.Delete, contentDescription = "Delete")
                                     }
                                 }
@@ -118,6 +124,18 @@ fun PlansScreen(
             initial = plan.name,
             onDismiss = { renameTarget = null },
             onSave = { vm.renamePlan(plan.id, it); renameTarget = null }
+        )
+    }
+
+    deleteTarget?.let { plan ->
+        ConfirmationDialog(
+            title = "Delete plan?",
+            message = "This will permanently delete ${plan.name} and its workout setup.",
+            onConfirm = {
+                vm.deletePlan(plan)
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null }
         )
     }
 }

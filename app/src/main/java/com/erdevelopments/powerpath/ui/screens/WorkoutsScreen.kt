@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.erdevelopments.powerpath.ui.screens
 
@@ -6,7 +6,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,10 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -40,25 +37,29 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.erdevelopments.powerpath.data.local.WorkoutEntity
-import java.io.File
+import com.erdevelopments.powerpath.ui.components.ConfirmationDialog
+import com.erdevelopments.powerpath.ui.components.FullscreenImageDialog
+import com.erdevelopments.powerpath.ui.components.WorkoutImage
 
 @Composable
 fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
     val workouts by vm.workouts.collectAsStateWithLifecycle()
 
     var showAdd by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<WorkoutEntity?>(null) }
     var editTarget by remember { mutableStateOf<WorkoutEntity?>(null) }
     var fullscreenImagePath by remember { mutableStateOf<String?>(null) }
 
@@ -84,11 +85,11 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
                     items(
                         items = workouts,
                         key = { "workout_${it.id}" }
-                    ) { w ->
+                    ) { workout ->
                         WorkoutListItem(
-                            workout = w,
-                            onEdit = { editTarget = w },
-                            onDelete = { vm.deleteWorkout(w) },
+                            workout = workout,
+                            onEdit = { editTarget = workout },
+                            onDelete = { deleteTarget = workout },
                             onImageClick = { path -> fullscreenImagePath = path }
                         )
                     }
@@ -111,7 +112,7 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
             title = "New workout",
             initialWorkout = null,
             onDismiss = { showAdd = false },
-            onSave = { name, parts, desc, pickedImageUri, removeImage ->
+            onSave = { name, parts, desc, pickedImageUri, _ ->
                 vm.addWorkout(name, parts, desc, pickedImageUri)
                 showAdd = false
             }
@@ -141,6 +142,18 @@ fun WorkoutsScreen(vm: WorkoutsViewModel = hiltViewModel()) {
         FullscreenImageDialog(
             imagePath = path,
             onDismiss = { fullscreenImagePath = null }
+        )
+    }
+
+    deleteTarget?.let { workout ->
+        ConfirmationDialog(
+            title = "Delete workout?",
+            message = "This will permanently delete ${workout.name}.",
+            onConfirm = {
+                vm.deleteWorkout(workout)
+                deleteTarget = null
+            },
+            onDismiss = { deleteTarget = null }
         )
     }
 }
@@ -214,77 +227,6 @@ private fun WorkoutListItem(
             }
         }
     }
-}
-
-@Composable
-private fun WorkoutImage(
-    imagePath: String?,
-    modifier: Modifier = Modifier,
-    onClick: (String) -> Unit
-) {
-    val hasImage = !imagePath.isNullOrBlank()
-
-    if (hasImage) {
-        val model =
-            if (imagePath.startsWith("content://") || imagePath.startsWith("file://")) imagePath
-            else File(imagePath)
-
-        AsyncImage(
-            model = model,
-            contentDescription = null,
-            modifier = modifier
-                .clip(CircleShape)
-                .clickable { onClick(imagePath!!) },
-            contentScale = ContentScale.Crop
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "—",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun FullscreenImageDialog(
-    imagePath: String,
-    onDismiss: () -> Unit
-) {
-    val model =
-        if (imagePath.startsWith("content://") || imagePath.startsWith("file://")) imagePath
-        else File(imagePath)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Close")
-            }
-        },
-        text = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                AsyncImage(
-                    model = model,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
-            }
-        }
-    )
 }
 
 @Composable
@@ -389,7 +331,7 @@ private fun AddOrEditWorkoutDialog(
                 )
 
                 if (imageUri != null) {
-                    Text("New image selected ✓")
+                    Text("New image selected")
                 } else if (initialWorkout?.imageUri != null && !removeImage) {
                     Text("Current image kept")
                 } else {

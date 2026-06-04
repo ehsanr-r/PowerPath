@@ -20,6 +20,7 @@ interface DayPlanWorkoutDao {
             w.id AS workoutId,
             w.name AS workoutName,
             w.bodyPart AS bodyPart,
+            w.imageUri AS imageUri,
 
             pw.weightKg AS templateWeightKg,
             pw.sets AS templateSets,

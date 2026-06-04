@@ -56,6 +56,12 @@ class PlanDetailViewModel @Inject constructor(
         }
     }
 
+    fun reorderWorkouts(planId: Long, orderedWorkoutIds: List<Long>) {
+        viewModelScope.launch {
+            planWorkoutDao.reorderWorkouts(planId, orderedWorkoutIds)
+        }
+    }
+
     fun removeFromPlan(planId: Long, workoutId: Long) {
         viewModelScope.launch { planWorkoutDao.deleteFromPlan(planId, workoutId) }
     }
