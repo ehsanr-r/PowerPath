@@ -6,10 +6,12 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -28,9 +30,16 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
 
     if (userId == null) {
         Column(Modifier.padding(16.dp)) {
-            Text("Summary", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Summary",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
             Spacer(Modifier.height(12.dp))
-            Text("Select a user first.")
+            Text(
+                "Select a user first.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
         return
     }
@@ -39,39 +48,95 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item { Text("Summary", style = MaterialTheme.typography.titleLarge) }
-
-        // ----------------- Section 1: Volume by day -----------------
         item {
-            Text("Volume by Day", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Summary",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Your training analytics",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        item {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Volume by Day",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
             Spacer(Modifier.height(8.dp))
             if (dayVolumes.isEmpty()) {
-                Text("No data yet. Mark workouts as done in a Day to generate summary.")
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        "No data yet. Mark workouts as done in a Day to generate summary.",
+                        modifier = Modifier.padding(14.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } else {
-                SimpleBarChart(values = dayVolumes.map { it.volume })
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
+                    SimpleBarChart(
+                        values = dayVolumes.map { it.volume },
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
             }
         }
 
         if (dayVolumes.isNotEmpty()) {
             items(dayVolumes, key = { "day_volume_${it.dayId}" }) { dv ->
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
                     Row(
-                        Modifier.fillMaxWidth().padding(12.dp),
+                        Modifier.fillMaxWidth().padding(14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(dv.dayName)
-                        Text("%,.0f".format(dv.volume))
+                        Text(
+                            dv.dayName,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            "%,.0f".format(dv.volume),
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
         }
 
-        // ----------------- Section 2: Workout progress -----------------
         item {
-            Spacer(Modifier.height(6.dp))
-            Divider()
-            Spacer(Modifier.height(6.dp))
-            Text("Workout progress", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Workout progress",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
         }
 
         item {
@@ -84,13 +149,29 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
 
         when {
             selectedWorkoutId == null -> {
-                item { Text("Pick a workout to see progress across days.") }
+                item {
+                    Text(
+                        "Pick a workout to see progress across days.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             progress.isEmpty() -> {
-                item { Text("No completed entries for this workout yet. Mark it Done in Day detail.") }
+                item {
+                    Text(
+                        "No completed entries for this workout yet. Mark it Done in Day detail.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             else -> {
                 item {
+                    Text(
+                        "Volume per day",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(Modifier.height(8.dp))
                     val barItems = progress.map { p ->
                         WorkoutBarItem(
                             dayLabel = p.dayName,
@@ -100,35 +181,68 @@ fun SummaryScreen(vm: SummaryViewModel = hiltViewModel()) {
                             reps = p.totalReps
                         )
                     }
-
-                    Text("Volume bars (left axis = total volume)", style = MaterialTheme.typography.titleSmall)
-                    Spacer(Modifier.height(8.dp))
                     val context = LocalContext.current
 
-                    WorkoutProgressBarChart(
-                        items = barItems,
-                        onBarClick = { item ->
-                            Toast.makeText(
-                                context,
-                                "${item.dayLabel}: Volume ${"%,.0f".format(item.volume)}",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        )
+                    ) {
+                        WorkoutProgressBarChart(
+                            items = barItems,
+                            modifier = Modifier.padding(12.dp),
+                            onBarClick = { item ->
+                                Toast.makeText(
+                                    context,
+                                    "${item.dayLabel}: Volume ${"%,.0f".format(item.volume)}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    }
                 }
 
                 item {
                     Spacer(Modifier.height(8.dp))
-                    Text("History", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "History",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 items(progress, key = { "workout_progress_${it.dayId}" }) { p ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(p.dayName, style = MaterialTheme.typography.titleMedium)
-                            Text("Max weight: ${p.maxWeightKg} kg")
-                            Text("Sets: ${p.totalSets} • Total reps: ${p.totalReps}")
-                            Text("Volume: %,.0f".format(p.totalVolume))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        )
+                    ) {
+                        Column(
+                            Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                p.dayName,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                "Max weight: ${p.maxWeightKg} kg",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "Sets: ${p.totalSets}  •  Total reps: ${p.totalReps}",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                "Volume: %,.0f".format(p.totalVolume),
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
                 }
@@ -171,7 +285,7 @@ private fun WorkoutPicker(
                     }
                 )
             }
-            Divider()
+            HorizontalDivider()
             DropdownMenuItem(
                 text = { Text("Clear selection") },
                 onClick = {

@@ -5,8 +5,10 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -37,20 +39,22 @@ fun WorkoutProgressBarChart(
     val labelSizePx = with(density) { 11.sp.toPx() }
     val insideSizePx = with(density) { 10.sp.toPx() }
 
-    val axisColor = Color.Black.copy(alpha = 0.35f)
-    val barColor = Color.Black.copy(alpha = 0.25f)
-    val textColor = Color.Black.copy(alpha = 0.75f)
+    val axisColor = MaterialTheme.colorScheme.outlineVariant
+    val barColor = MaterialTheme.colorScheme.primary
+    val barColorAlpha = barColor.copy(alpha = 0.75f)
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val subtleTextColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val maxValue = (items.maxOfOrNull { it.volume } ?: 0f).coerceAtLeast(1f)
 
-    val leftPad = with(density) { 54.dp.toPx() }   // y labels
-    val bottomPad = with(density) { 26.dp.toPx() } // x labels
+    val leftPad = with(density) { 54.dp.toPx() }
+    val bottomPad = with(density) { 26.dp.toPx() }
     val topPad = with(density) { 10.dp.toPx() }
     val rightPad = with(density) { 10.dp.toPx() }
 
     val yLabelPaint = Paint().apply {
         isAntiAlias = true
-        color = textColor.toArgb()
+        color = subtleTextColor.toArgb()
         textSize = labelSizePx
     }
     val xLabelPaint = Paint().apply {
@@ -77,7 +81,6 @@ fun WorkoutProgressBarChart(
                 val originX = leftPad
                 val originY = topPad + chartH
 
-                // Only react if tap is inside chart area (not y labels / x labels)
                 if (tap.x < originX || tap.x > originX + chartW) return@detectTapGestures
                 if (tap.y < topPad || tap.y > originY) return@detectTapGestures
 
@@ -102,11 +105,9 @@ fun WorkoutProgressBarChart(
         val chartH = size.height - topPad - bottomPad
         val origin = Offset(leftPad, topPad + chartH)
 
-        // Axes
         drawLine(axisColor, start = origin, end = Offset(origin.x + chartW, origin.y), strokeWidth = 2f)
         drawLine(axisColor, start = origin, end = Offset(origin.x, origin.y - chartH), strokeWidth = 2f)
 
-        // Y ticks + labels
         val ticks = max(1, yAxisTicks)
         for (i in 0..ticks) {
             val t = i.toFloat() / ticks
@@ -128,15 +129,15 @@ fun WorkoutProgressBarChart(
         val n = items.size
         val gap = (chartW * 0.10f) / (n + 1)
         val barW = (chartW - gap * (n + 1)) / n
+        val cornerRadius = CornerRadius(barW / 4f)
 
         items.forEachIndexed { idx, item ->
             val x = origin.x + gap + idx * (barW + gap)
             val h = (item.volume / maxValue) * chartH
 
             val topLeft = Offset(x, origin.y - h)
-            drawRect(barColor, topLeft, Size(barW, h))
+            drawRoundRect(barColorAlpha, topLeft, Size(barW, h), cornerRadius)
 
-            // X label
             drawContext.canvas.nativeCanvas.drawText(
                 item.dayLabel,
                 x + barW / 2f,
@@ -144,7 +145,6 @@ fun WorkoutProgressBarChart(
                 xLabelPaint
             )
 
-            // Inside labels
             val lines = listOf(
                 "${item.weightKg}kg",
                 "S:${item.sets} R:${item.reps}"

@@ -6,11 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.erdevelopments.powerpath.data.backup.BackupPreview
 import com.erdevelopments.powerpath.data.backup.DatabaseBackupManager
 import com.erdevelopments.powerpath.data.prefs.PrefsRepository
+import com.erdevelopments.powerpath.data.prefs.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -24,6 +27,9 @@ class SettingsViewModel @Inject constructor(
     private val backupManager: DatabaseBackupManager,
     private val prefs: PrefsRepository
 ) : ViewModel() {
+
+    val themeMode = prefs.themeMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ThemeMode.SYSTEM)
 
     private val _isBusy = MutableStateFlow(false)
     val isBusy = _isBusy.asStateFlow()
@@ -108,6 +114,10 @@ class SettingsViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { prefs.setThemeMode(mode) }
     }
 
     override fun onCleared() {
