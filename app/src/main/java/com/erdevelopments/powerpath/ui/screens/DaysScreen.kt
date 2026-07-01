@@ -1,5 +1,7 @@
 package com.erdevelopments.powerpath.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -43,16 +45,16 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
         ) {
             Text(
                 "Days",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 "Your training sessions",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
 
             if (userId == null) {
                 Text(
@@ -82,6 +84,13 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
                     items(days, key = { it.id }) { day ->
                         val isSelected = selectedDayId == day.id
 
+                        val containerColor by animateColorAsState(
+                            if (isSelected) MaterialTheme.colorScheme.secondaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            animationSpec = tween(300),
+                            label = "dayColor"
+                        )
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -89,12 +98,10 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
                                     vm.selectDay(day.id)
                                     onOpenDay(day.id)
                                 },
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected)
-                                    MaterialTheme.colorScheme.secondaryContainer
-                                else
-                                    MaterialTheme.colorScheme.surfaceContainerHigh
+                            shape = RoundedCornerShape(20.dp),
+                            colors = CardDefaults.cardColors(containerColor = containerColor),
+                            elevation = CardDefaults.cardElevation(
+                                defaultElevation = if (isSelected) 4.dp else 1.dp
                             )
                         ) {
                             Row(
@@ -106,7 +113,7 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(40.dp)
+                                        .size(44.dp)
                                         .clip(CircleShape)
                                         .background(
                                             if (isSelected)
@@ -137,7 +144,8 @@ fun DaysScreen(onOpenDay: (Long) -> Unit, vm: DaysViewModel = hiltViewModel()) {
                                         Text(
                                             "Active session",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                            color = MaterialTheme.colorScheme.secondary,
+                                            fontWeight = FontWeight.Medium
                                         )
                                     }
                                 }

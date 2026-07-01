@@ -2,6 +2,9 @@
 
 package com.erdevelopments.powerpath.ui.screens
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,6 +43,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -93,7 +97,11 @@ fun DayDetailScreen(
     var expandedDayPlanId by remember { mutableStateOf(-1L) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(dayName) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(dayName, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { if (allPlans.isNotEmpty()) showAddPlan = true }
@@ -108,7 +116,17 @@ fun DayDetailScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Text("Day activity", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Day activity",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Manage your workout plans for this day",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(12.dp))
 
             if (assignedPlans.isEmpty()) {
@@ -206,35 +224,73 @@ private fun DayPlanCard(
     workouts: List<DayPlanWorkoutItem>,
     vm: DayDetailViewModel = hiltViewModel()
 ) {
+    val progress = if (totalWorkouts > 0) doneWorkouts.toFloat() / totalWorkouts else 0f
+    val animatedProgress by animateFloatAsState(progress, animationSpec = tween(500), label = "progress")
+    val allDone = totalWorkouts > 0 && doneWorkouts == totalWorkouts
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp)
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (allDone)
+                MaterialTheme.colorScheme.secondaryContainer
+            else
+                MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(Modifier.padding(12.dp)) {
+        Column(
+            Modifier
+                .animateContentSize(animationSpec = tween(300))
+                .padding(14.dp)
+        ) {
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(dayPlan.planName, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "$doneWorkouts/$totalWorkouts workouts complete",
-                        style = MaterialTheme.typography.bodySmall
+                        dayPlan.planName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "$doneWorkouts / $totalWorkouts workouts complete",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 IconButton(onClick = onRemove) {
-                    Icon(Icons.Default.Delete, contentDescription = "Remove plan from day")
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Remove plan from day",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            if (totalWorkouts > 0) {
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(3.dp)),
+                    color = if (allDone) MaterialTheme.colorScheme.secondary
+                    else MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
 
-            Text(
-                text = if (expanded) "Hide workouts" else "Show workouts",
-                modifier = Modifier.clickable { onToggleExpand() },
-                style = MaterialTheme.typography.labelLarge
-            )
+            Spacer(Modifier.height(10.dp))
+
+            TextButton(onClick = onToggleExpand) {
+                Text(if (expanded) "Hide workouts" else "Show workouts")
+            }
 
             if (expanded) {
                 Spacer(Modifier.height(8.dp))

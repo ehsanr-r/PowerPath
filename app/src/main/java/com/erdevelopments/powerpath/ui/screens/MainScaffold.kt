@@ -1,5 +1,10 @@
 package com.erdevelopments.powerpath.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,11 +13,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QueryStats
@@ -22,6 +29,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -36,7 +45,7 @@ fun MainScaffold(navController: NavHostController) {
 
     val tabs = listOf(
         "days" to Icons.Default.CalendarMonth,
-        "plans" to Icons.Default.List,
+        "plans" to Icons.AutoMirrored.Filled.List,
         "workouts" to Icons.Default.FitnessCenter,
         "summary" to Icons.Default.QueryStats
     )
@@ -50,21 +59,43 @@ fun MainScaffold(navController: NavHostController) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .height(160.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    MaterialTheme.colorScheme.surface
+                                )
+                            )
+                        ),
                     contentAlignment = Alignment.BottomStart
                 ) {
-                    Column(Modifier.padding(20.dp)) {
+                    Column(Modifier.padding(24.dp)) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.FitnessCenter,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
                         Text(
                             "PowerPath",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            "Track your strength",
+                            "Track your strength journey",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -116,14 +147,14 @@ fun MainScaffold(navController: NavHostController) {
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        navigationIconContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                     )
                 )
             },
             bottomBar = {
-                NavigationBar {
+                NavigationBar(tonalElevation = 4.dp) {
                     tabs.forEach { (route, icon) ->
                         NavigationBarItem(
                             selected = currentTab == route,
@@ -135,12 +166,15 @@ fun MainScaffold(navController: NavHostController) {
                 }
             }
         ) { padding ->
-            Box(
-                Modifier
+            AnimatedContent(
+                targetState = currentTab,
+                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) },
+                modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
-            ) {
-                when (currentTab) {
+                    .padding(padding),
+                label = "tab"
+            ) { tab ->
+                when (tab) {
                     "days" -> DaysScreen(onOpenDay = { dayId -> navController.navigate(Routes.dayDetail(dayId)) })
                     "plans" -> PlansScreen(onOpenPlan = { planId -> navController.navigate(Routes.planDetail(planId)) })
                     "workouts" -> WorkoutsScreen()
