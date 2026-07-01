@@ -73,8 +73,8 @@ fun PlanDetailScreen(
     planId: Long,
     vm: PlanDetailViewModel = hiltViewModel()
 ) {
-    val planName by vm.observePlanName(planId).collectAsStateWithLifecycle()
-    val items by vm.planItems(planId).collectAsStateWithLifecycle()
+    val planName by vm.planName.collectAsStateWithLifecycle()
+    val items by vm.planItems.collectAsStateWithLifecycle()
     val allWorkouts by vm.allWorkouts.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val displayedItems = remember(planId) { mutableStateListOf<PlanWorkoutItem>() }
@@ -167,7 +167,7 @@ fun PlanDetailScreen(
                                         val previousOrder = items.map { it.workoutId }
                                         if (updatedOrder != previousOrder) {
                                             pendingOrderedWorkoutIds = updatedOrder
-                                            vm.reorderWorkouts(planId, updatedOrder)
+                                            vm.reorderWorkouts(updatedOrder)
                                         }
                                         draggedWorkoutId = null
                                         draggedOffsetY = 0f
@@ -235,7 +235,7 @@ fun PlanDetailScreen(
             workouts = allWorkouts.map { it.id to it.name },
             onDismiss = { showAdd = false },
             onAdd = { workoutId, weight, sets, reps, rest ->
-                vm.addWorkoutToPlan(planId, workoutId, weight, sets, reps, rest)
+                vm.addWorkoutToPlan(workoutId, weight, sets, reps, rest)
                 showAdd = false
             }
         )
@@ -246,7 +246,7 @@ fun PlanDetailScreen(
             item = target,
             onDismiss = { editTarget = null },
             onSave = { weight, sets, reps, rest ->
-                vm.updatePlanWorkout(planId, target.workoutId, weight, sets, reps, rest)
+                vm.updatePlanWorkout(target.workoutId, weight, sets, reps, rest)
                 editTarget = null
             }
         )
@@ -258,7 +258,7 @@ fun PlanDetailScreen(
             message = "This will remove ${target.workoutName} from $planName.",
             confirmLabel = "Remove",
             onConfirm = {
-                vm.removeFromPlan(planId, target.workoutId)
+                vm.removeFromPlan(target.workoutId)
                 deleteTarget = null
             },
             onDismiss = { deleteTarget = null }

@@ -1,5 +1,6 @@
 package com.erdevelopments.powerpath.ui.screens
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.erdevelopments.powerpath.data.local.PlanWorkoutEntity
@@ -10,30 +11,33 @@ import com.erdevelopments.powerpath.data.local.model.PlanWorkoutItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PlanDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val planDao: PlanDao,
     private val workoutDao: WorkoutDao,
     private val planWorkoutDao: PlanWorkoutDao
 ) : ViewModel() {
 
-    fun observePlanName(planId: Long): StateFlow<String> =
-        kotlinx.coroutines.flow.flow {
-            emit(planDao.getById(planId)?.name ?: "Plan")
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Plan")
+    private val planId: Long = checkNotNull(savedStateHandle.get<String>("planId")).toLong()
+
+    val planName: StateFlow<String> = flow {
+        emit(planDao.getById(planId)?.name ?: "Plan")
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Plan")
 
     val allWorkouts = workoutDao.observeWorkouts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun planItems(planId: Long): StateFlow<List<PlanWorkoutItem>> =
+    val planItems: StateFlow<List<PlanWorkoutItem>> =
         planWorkoutDao.observePlanWorkoutItems(planId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addWorkoutToPlan(planId: Long, workoutId: Long, weightKg: Float, sets: Int, reps: Int, restSeconds: Int) {
+    fun addWorkoutToPlan(workoutId: Long, weightKg: Float, sets: Int, reps: Int, restSeconds: Int) {
         viewModelScope.launch {
             val nextOrder = planWorkoutDao.nextOrderIndex(planId)
             planWorkoutDao.upsert(
@@ -50,19 +54,19 @@ class PlanDetailViewModel @Inject constructor(
         }
     }
 
-    fun updatePlanWorkout(planId: Long, workoutId: Long, weightKg: Float, sets: Int, reps: Int, restSeconds: Int) {
+    fun updatePlanWorkout(workoutId: Long, weightKg: Float, sets: Int, reps: Int, restSeconds: Int) {
         viewModelScope.launch {
             planWorkoutDao.updateValues(planId, workoutId, weightKg, sets, reps, restSeconds)
         }
     }
 
-    fun reorderWorkouts(planId: Long, orderedWorkoutIds: List<Long>) {
+    fun reorderWorkouts(orderedWorkoutIds: List<Long>) {
         viewModelScope.launch {
             planWorkoutDao.reorderWorkouts(planId, orderedWorkoutIds)
         }
     }
 
-    fun removeFromPlan(planId: Long, workoutId: Long) {
+    fun removeFromPlan(workoutId: Long) {
         viewModelScope.launch { planWorkoutDao.deleteFromPlan(planId, workoutId) }
     }
 }
